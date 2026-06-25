@@ -19,17 +19,28 @@ console.log("- SUPABASE_ANON_KEY:", process.env.SUPABASE_ANON_KEY ? "Present" : 
 console.log("Current API route paths: POST /api/analyze");
 
 
-// Initialize Supabase admin client with service role key if available
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
-const supabaseAdmin = (supabaseUrl && supabaseServiceKey) 
-  ? createClient(supabaseUrl, supabaseServiceKey) 
-  : null;
+// Initialize Supabase admin client safely
+const supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim();
+const supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "").trim();
 
-if (supabaseAdmin) {
-  console.log("[✓] Supabase connected (Integration active)");
+const isUrlValid = (url: string) => {
+  try {
+    return /^https?:\/\/\S+$/.test(url) && !url.includes("ENTER_YOUR");
+  } catch {
+    return false;
+  }
+};
+
+let supabaseAdmin = null;
+if (isUrlValid(supabaseUrl) && supabaseServiceKey && !supabaseServiceKey.includes("ENTER_YOUR")) {
+  try {
+    supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    console.log("[✓] Supabase connected (Integration active)");
+  } catch (err: any) {
+    console.error("[RepoSense Server] Failed to initialize Supabase admin client:", err.message || err);
+  }
 } else {
-  console.warn("[RepoSense Server] Supabase credentials missing. Local-only fallbacks will be used.");
+  console.warn("[RepoSense Server] Supabase credentials missing or invalid. Local-only fallbacks will be used.");
 }
 
 // ES module compatibility
@@ -871,7 +882,7 @@ Return only the JSON.
 
     const nvidiaApiKey = process.env.NVIDIA_API_KEY;
     const requestUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-    const modelName = "meta/llama-3.3-70b-instruct";
+    const modelName = "deepseek-ai/deepseek-v4-flash";
 
     console.log(`Using model: ${modelName}`);
     console.log(`[NVIDIA Request] Request URL: ${requestUrl}`);
