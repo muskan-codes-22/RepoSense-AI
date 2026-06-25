@@ -1,0 +1,6 @@
+{
+  "name": "RepoSense AI",
+  "description": "An elegant, AI-powered GitHub Repository Analyzer that transforms complex source code repositories into clear, actionable summaries, installation steps, technology stacks, and structural insights.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
