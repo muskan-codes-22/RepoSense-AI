@@ -229,9 +229,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
       {/* TOP HEADER: Clean centered logo */}
       <div className="w-full max-w-[460px] mx-auto flex items-center justify-between z-10 shrink-0 mb-6">
         <div className="flex items-center gap-2.5 cursor-pointer select-none" onClick={onBackToLanding}>
-          <div className="w-9 h-9 bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] rounded-xl flex items-center justify-center text-white shadow-md shadow-purple-500/10">
-            <Sparkles className="w-4.5 h-4.5 fill-white/10" />
-          </div>
+          <img src="/logo.svg" alt="RepoSense AI" className="w-9 h-9 rounded-xl shadow-md shadow-purple-500/10" />
           <div>
             <h1 className="font-extrabold text-sm tracking-tight font-display text-slate-900">
               REPOSENSE AI

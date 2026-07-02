@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Source+Code+Pro:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "DM Sans", sans-serif;
+  --font-mono: "Source Code Pro", ui-monospace, SFMono-Regular, monospace;
   
   --color-brand-50: #F5F3FF;
   --color-brand-100: #EDE9FE;
@@ -34,9 +34,10 @@
   background: #94A3B8;
 }
 
-/* Smooth Scrolling */
+/* Smooth Scrolling & Base Size */
 html {
   scroll-behavior: smooth;
+  font-size: 17px;
 }
 
 /* Glassmorphism Classes */
@@ -80,4 +81,22 @@ html {
 
 .purple-glow-hover:hover {
   box-shadow: 0 0 50px 0px rgba(124, 58, 237, 0.25);
+}
+
+/* Animated glow pulse for feature cards */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 15px 2px rgba(139, 92, 246, 0.15), inset 0 0 15px 2px rgba(139, 92, 246, 0.05); }
+  50% { box-shadow: 0 0 25px 5px rgba(139, 92, 246, 0.3), inset 0 0 25px 5px rgba(139, 92, 246, 0.1); }
+}
+
+.feature-card {
+  animation: glowPulse 3s ease-in-out infinite;
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 0 35px 8px rgba(139, 92, 246, 0.4), inset 0 0 20px 3px rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.5);
 }

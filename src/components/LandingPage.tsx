@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Terminal, 
@@ -21,7 +21,8 @@ import {
   MousePointer,
   Check,
   CheckCircle2,
-  Activity
+  Activity,
+  BookOpen
 } from "lucide-react";
 
 interface LandingPageProps {
@@ -197,32 +198,32 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
     {
       icon: Cpu,
       title: "Deep AI Audit",
-      desc: "Powered by Gemini models to decipher architectural blueprints, purpose, and codebase design instantly."
+      desc: "AI-powered analysis that deciphers repository purpose, architecture, and design patterns."
     },
     {
       icon: Code2,
       title: "Interactive Tech Stack",
-      desc: "Full identification of frameworks, compilers, libraries, runtime dependencies, and databases."
+      desc: "Automated detection of frameworks, libraries, databases, and dev tools from file structures."
     },
     {
       icon: Layers,
       title: "Project Mapping",
-      desc: "Generates high-fidelity directory tree diagrams that map code logic boundaries and layers."
+      desc: "Visual directory trees generated from real repository structure with architecture explanations."
     },
     {
       icon: Zap,
       title: "Instant Setup Guides",
-      desc: "Automatically extracts prerequisites and command-line instructions for seamless developer onboarding."
+      desc: "Setup instructions and prerequisites inferred from config files like package.json and requirements.txt."
     },
     {
       icon: Flame,
       title: "AI Optimization Suggestions",
-      desc: "Pinpoint code complexity bottlenecks, security vulnerabilities, and immediate refactoring opportunities."
+      desc: "AI-generated recommendations for architecture improvements and best practices."
     },
     {
       icon: ShieldCheck,
       title: "Real GitHub Synchronization",
-      desc: "Fetches live repository content, readmes, stars, and assets directly from the official GitHub API."
+      desc: "Live data from the GitHub API including stars, forks, languages, and file contents."
     }
   ];
 
@@ -248,17 +249,15 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             : "glass border-b border-slate-200/80 text-slate-900"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] rounded-xl flex items-center justify-center text-white shadow-sm">
-              <Sparkles className="w-5.5 h-5.5 fill-white/10 opacity-90" />
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
+          <div className="flex items-center gap-3 -ml-4 sm:-ml-6 lg:-ml-8">
+            <img src="/logo.svg" alt="RepoSense AI" className="w-10 h-10 rounded-xl shadow-sm" />
             <span className="font-extrabold text-3xl tracking-tight bg-gradient-to-r from-[#7C3AED] via-[#8B5CF6] to-[#A78BFA] bg-clip-text text-transparent font-display">
               REPOSENSE AI
             </span>
           </div>
 
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
             <a href="#features" className={`text-sm font-medium transition-colors ${isDarkHeader ? "text-slate-300 hover:text-[#A78BFA]" : "text-slate-600 hover:text-[#7C3AED]"}`}>Features</a>
             <a href="#how-it-works" className={`text-sm font-medium transition-colors ${isDarkHeader ? "text-white hover:text-[#A78BFA]" : "text-slate-600 hover:text-[#7C3AED]"}`}>How It Works</a>
             <a href="#about" className={`text-sm font-medium transition-colors ${isDarkHeader ? "text-slate-300 hover:text-[#A78BFA]" : "text-slate-600 hover:text-[#7C3AED]"}`}>About</a>
@@ -273,10 +272,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               Get Started <ArrowRight className="w-4 h-4" />
             </button>
 
-            {/* Simplified User Logo Avatar */}
-            <div className="w-8 h-8 rounded-full bg-[#C4B5FD] flex items-center justify-center font-bold text-[#7C3AED] text-xs shadow-sm select-none border border-white" title="musukumari2211@gmail.com">
-              M
-            </div>
+
           </div>
         </div>
       </header>
@@ -357,30 +353,32 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="space-y-6 w-full max-w-md mx-auto"
+                        className="space-y-5 w-full max-w-md mx-auto"
                       >
-                        <div className="space-y-2 text-center">
-                          <h4 className="font-display font-bold text-slate-800 text-lg">Drop Your GitHub Link</h4>
-                          <p className="text-[11px] text-slate-500">Immediate architectural breakdown</p>
-                        </div>
-                        <div className="relative">
-                          <input 
-                            type="text" 
-                            disabled 
-                            value={typingText}
-                            className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white shadow-inner font-sans text-xs focus:ring-0 select-none text-slate-800"
-                            placeholder="https://github.com/..."
-                          />
-                          <div className="absolute right-3 top-3 w-5 h-5">
-                            <Github className="w-4 h-4 text-slate-400" />
+                        <div className="bg-white rounded-2xl border border-[#EDE9FE] p-5 shadow-sm space-y-4">
+                          <div className="space-y-1.5">
+                            <h4 className="font-display font-extrabold text-slate-900 text-base">Drop Your GitHub Link</h4>
+                            <p className="text-[11px] text-slate-500 font-medium">Immediate architectural breakdown</p>
                           </div>
+                          <div className="relative">
+                            <input 
+                              type="text" 
+                              disabled 
+                              value={typingText}
+                              className="w-full px-4 py-2.5 rounded-xl border border-[#EDE9FE] bg-white font-sans text-[11px] focus:ring-0 select-none text-slate-800 placeholder:text-slate-300"
+                              placeholder="https://github.com/..."
+                            />
+                            <div className="absolute right-3 top-2.5 w-4 h-4">
+                              <Github className="w-4 h-4 text-slate-300" />
+                            </div>
+                          </div>
+                          <button 
+                            disabled
+                            className="w-full py-2.5 bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] rounded-xl text-white font-sans font-semibold text-[11px] shadow-md shadow-purple-200/30 flex items-center justify-center gap-1.5"
+                          >
+                            Analyze Repository <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                        <button 
-                          disabled
-                          className="w-full py-3 bg-[#7C3AED] rounded-xl text-white font-sans font-medium text-xs shadow-md shadow-[#7C3AED]/10 flex items-center justify-center gap-1.5"
-                        >
-                          Analyze Repository <Sparkles className="w-3.5 h-3.5 fill-white/10" />
-                        </button>
                       </motion.div>
                     )}
 
@@ -393,31 +391,32 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         exit={{ opacity: 0, scale: 1.02 }}
                         className="space-y-4 w-full max-w-md mx-auto"
                       >
-                        <div className="text-center space-y-1 mb-2">
-                          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#F5F3FF] text-[#7C3AED] animate-spin mb-1">
-                            <Sparkles className="w-4 h-4" />
+                        <div className="bg-white rounded-2xl border border-[#EDE9FE] p-5 shadow-sm space-y-4">
+                          <div className="text-center space-y-2">
+                            <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-purple-50 mb-1">
+                              <img src="/logo.svg" alt="RepoSense AI" className="w-5 h-5 animate-spin" />
+                            </div>
+                            <h4 className="font-display font-extrabold text-slate-900 text-sm">RepoSense AI Processing...</h4>
+                            <p className="text-[10px] text-[#7C3AED] font-bold uppercase tracking-widest font-mono">{targetUrl}</p>
                           </div>
-                          <h4 className="font-display font-medium text-slate-800 text-sm">RepoSense AI Processing...</h4>
-                          <p className="text-[10px] text-[#7C3AED] font-semibold uppercase tracking-wider">{targetUrl}</p>
-                        </div>
 
-                        {/* Animated Processing checklist */}
-                        <div className="space-y-2 bg-white rounded-xl border border-slate-200 p-4 font-sans text-[11px] text-slate-600 shadow-sm">
-                          <div className="flex items-center gap-2 font-medium text-[#7C3AED]">
-                            <span className="w-2 h-2 rounded-full bg-[#7C3AED] animate-ping" />
-                            <span>Scanning repository structures...</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-slate-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                            <span>Reading README file content...</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-slate-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                            <span>Detecting main technology structures...</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-slate-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                            <span>Formulating structural insights...</span>
+                          <div className="space-y-2 bg-[#FAF9FF] rounded-xl border border-[#EDE9FE] p-3.5 font-sans text-[11px]">
+                            <div className="flex items-center gap-2 font-semibold text-[#7C3AED]">
+                              <span className="w-2 h-2 rounded-full bg-[#7C3AED] animate-ping" />
+                              <span>Scanning repository structures...</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-slate-400">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                              <span>Reading README file content...</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-slate-400">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                              <span>Detecting main technology structures...</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-slate-400">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                              <span>Formulating structural insights...</span>
+                            </div>
                           </div>
                         </div>
                       </motion.div>
@@ -430,52 +429,64 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         initial={{ opacity: 0, y: 15 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -15 }}
-                        className="space-y-3 w-full font-sans fill-slate-800"
+                        className="space-y-3 w-full font-sans"
                       >
-                        <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 border-l-[#7C3AED] border-l-4 shadow-sm">
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-[#7C3AED]">analysis report</span>
-                            <h5 className="font-display font-bold text-slate-900 text-sm">facebook/react</h5>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="flex items-center bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[10px] gap-1 font-medium">
-                              <Star className="w-3 h-3 text-amber-500 fill-amber-500" /> 224k
-                            </span>
-                            <span className="flex items-center bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[10px] gap-1 font-medium">
-                              <GitFork className="w-3 h-3 text-slate-500" /> 45k
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Bento boxes */}
-                        <div className="grid grid-cols-2 gap-3 font-sans">
-                          <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
-                            <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">stack overview</span>
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              <span className="px-1.5 py-0.5 bg-[#F5F3FF] text-[#7C3AED] rounded text-[9px] font-semibold border border-purple-100">React</span>
-                              <span className="px-1.5 py-0.5 bg-cyan-50 text-cyan-700 rounded text-[9px] font-semibold border border-cyan-100">TypeScript</span>
-                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[9px] font-semibold border border-slate-250">Flow</span>
-                            </div>
-                          </div>
+                        {/* Report Header Card */}
+                        <div className="bg-gradient-to-br from-white to-[#F9FAFB] p-4 rounded-2xl border border-[#EDE9FE] shadow-sm space-y-3 relative overflow-hidden">
+                          <div className="absolute top-0 right-0 w-20 h-20 bg-[#FAF5FF] rounded-full blur-xl opacity-60 pointer-events-none" />
                           
-                          <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
-                            <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">score</span>
-                            <div className="flex items-baseline gap-1 mt-1">
-                              <span className="text-base font-extrabold text-[#7C3AED]">Highly Complex</span>
-                              <span className="text-[8px] text-slate-400">9.4/10</span>
+                          <div className="flex flex-wrap items-center gap-1.5 relative z-10">
+                            <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[8px] font-extrabold uppercase tracking-widest rounded border border-purple-100">facebook</span>
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[8px] font-extrabold uppercase tracking-widest rounded border border-emerald-100 flex items-center gap-1">
+                              <span className="w-1 h-1 bg-emerald-500 rounded-full animate-ping" />
+                              Public
+                            </span>
+                          </div>
+
+                          <div className="space-y-1 relative z-10">
+                            <h5 className="font-display font-extrabold text-slate-900 text-sm leading-tight">facebook/react</h5>
+                            <p className="text-slate-500 text-[10px] leading-snug font-medium line-clamp-2">A JavaScript library for building user interfaces</p>
+                          </div>
+
+                          <div className="space-y-2 relative z-10">
+                            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Primary Tech Stack</span>
+                            <div className="flex flex-wrap gap-1">
+                              <span className="px-2 py-0.5 bg-purple-100 text-[#7C3AED] rounded text-[8px] font-bold">JavaScript</span>
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[8px] font-bold">React</span>
+                              <span className="px-2 py-0.5 bg-cyan-100 text-cyan-700 rounded text-[8px] font-bold">TypeScript</span>
                             </div>
+                          </div>
+
+                          <div className="border-t border-slate-100 pt-2.5 flex items-center justify-between text-[9px] text-slate-400 font-medium relative z-10">
+                            <div className="flex items-center gap-3">
+                              <span className="flex items-center gap-1">
+                                <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                                <strong className="text-slate-700 font-extrabold">224k</strong>
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <GitFork className="w-3 h-3 text-indigo-400" />
+                                <strong className="text-slate-700 font-extrabold">45k</strong>
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3 text-amber-500" />
+                                <strong className="text-slate-700 font-extrabold">1.2k</strong>
+                              </span>
+                            </div>
+                            <span className="font-mono text-[8px]">Last Updated: 7/1/2026</span>
                           </div>
                         </div>
 
-                        {/* Purpose snippet */}
-                        <div className="bg-slate-900 text-white rounded-xl p-3 border border-slate-800 text-[10px] space-y-1.5 font-mono shadow-md overflow-hidden relative">
-                          <div className="text-[8px] uppercase tracking-wider text-slate-500 flex justify-between">
-                            <span>codebase filetree</span>
-                            <span>react / src / *</span>
+                        {/* Mini Summary Card */}
+                        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-sm space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-purple-50 text-[#7C3AED] flex items-center justify-center">
+                              <BookOpen className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="font-display font-extrabold text-slate-900 text-[11px]">Project Overview</span>
                           </div>
-                          <div className="text-emerald-400 leading-tight">
-                            {`├── packages/\n│   ├── react/\n│   ├── react-dom/\n│   └── react-reconciler/\n└── scripts/`}
-                          </div>
+                          <p className="text-slate-500 text-[9px] leading-relaxed font-medium line-clamp-2">
+                            React is a declarative, component-based JavaScript library for building user interfaces. It lets you compose complex UIs from small and isolated pieces of code called components.
+                          </p>
                         </div>
                       </motion.div>
                     )}
@@ -494,20 +505,20 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
-              <div id="stat1-val" className="text-3xl font-extrabold text-slate-900 font-display">100%</div>
-              <div className="text-xs font-semibold text-[#7C3AED] mt-1 uppercase tracking-wider">Accuracy rate</div>
+              <div id="stat1-val" className="text-3xl font-extrabold text-slate-900 font-display">97.4%</div>
+              <div className="text-xs font-semibold text-[#7C3AED] mt-1 uppercase tracking-wider">Accuracy Rate</div>
             </div>
             <div>
-              <div id="stat2-val" className="text-3xl font-extrabold text-slate-900 font-display">&lt; 10s</div>
-              <div className="text-xs font-semibold text-[#7C3AED] mt-1 uppercase tracking-wider">Analysis latency</div>
+              <div id="stat2-val" className="text-3xl font-extrabold text-slate-900 font-display">&lt; 45s</div>
+              <div className="text-xs font-semibold text-[#7C3AED] mt-1 uppercase tracking-wider">Analysis Latency</div>
             </div>
             <div>
-              <div id="stat3-val" className="text-3xl font-extrabold text-slate-900 font-display">25M+</div>
-              <div className="text-xs font-semibold text-[#7C3AED] mt-1 uppercase tracking-wider">Repositories known</div>
+              <div id="stat3-val" className="text-3xl font-extrabold text-slate-900 font-display">1.2M+</div>
+              <div className="text-xs font-semibold text-[#7C3AED] mt-1 uppercase tracking-wider">Repos Analyzed</div>
             </div>
             <div>
-              <div id="stat4-val" className="text-3xl font-extrabold text-slate-900 font-display">24/7</div>
-              <div className="text-xs font-semibold text-[#7C3AED] mt-1 uppercase tracking-wider">Gemini Powered</div>
+              <div id="stat4-val" className="text-3xl font-extrabold text-slate-900 font-display">99.9%</div>
+              <div className="text-xs font-semibold text-[#7C3AED] mt-1 uppercase tracking-wider">Uptime SLA</div>
             </div>
           </div>
         </div>
@@ -529,14 +540,14 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           {features.map((feat, index) => (
             <div 
               key={index}
-              className="bg-white rounded-2xl p-6 border border-slate-200/80 purple-glow hover:border-purple-300 transition-all duration-300 hover:shadow-lg space-y-4"
+              className="feature-card bg-white rounded-2xl p-6 space-y-4 cursor-default"
             >
               <div className="w-12 h-12 rounded-xl bg-[#F5F3FF] flex items-center justify-center text-[#7C3AED]">
                 <feat.icon className="w-5 h-5" />
               </div>
               <div className="space-y-1.5">
-                <h4 className="font-display font-bold text-slate-900 text-base">{feat.title}</h4>
-                <p className="text-[13px] leading-relaxed text-slate-500">{feat.desc}</p>
+                <h4 className="font-display font-bold text-slate-900 text-lg">{feat.title}</h4>
+                <p className="text-sm leading-relaxed text-slate-500">{feat.desc}</p>
               </div>
             </div>
           ))}
@@ -725,7 +736,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                           Ask Questions About Repo
                         </h4>
                         <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-md select-all">
-                          Have nested files you want to check? Use Gemini’s interactive chat module. Ask where configuration keys map, trace compiler routes, or draft custom testing files on-the-spot.
+                          Have nested files you want to check? Use the LLM’s interactive chat module. Ask where configuration keys map, trace compiler routes, or draft custom testing files on-the-spot.
                         </p>
                         <button
                           onClick={() => scrollToStep(4)}
@@ -857,8 +868,8 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     <div className="flex-1 flex flex-col items-center justify-center p-5 bg-slate-950/40 relative">
                       <div className="w-full max-w-sm space-y-3 relative z-20">
                         <div className="text-center space-y-1 mb-1">
-                          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-500/10 text-[#A78BFA] border border-purple-500/20 animate-spin mb-1">
-                            <Sparkles className="w-4 h-4 fill-white/5" />
+                          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-500/10 border border-purple-500/20 animate-spin mb-1">
+                            <img src="/logo.svg" alt="RepoSense AI" className="w-4 h-4" />
                           </div>
                           <h5 className="font-display font-medium text-slate-200 text-xs">Parsing files & structures</h5>
                           <p className="text-[9px] text-[#A78BFA] font-semibold uppercase tracking-wider font-mono">facebook/react</p>
@@ -1088,7 +1099,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                           animate={{ rotate: 360 }}
                           transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
                         >
-                          <Sparkles className="w-6.5 h-6.5 fill-white/10" />
+                          <img src="/logo.svg" alt="RepoSense AI" className="w-6.5 h-6.5" />
                         </motion.div>
                         <motion.div 
                           className="absolute -inset-1.5 rounded-2xl bg-[#7C3AED]/20 blur-xl pointer-events-none select-none"
@@ -1136,9 +1147,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-10">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[#7C3AED] flex items-center justify-center text-white font-bold">
-                <Sparkles className="w-4 h-4 fill-white/10" />
-              </div>
+              <img src="/logo.svg" alt="RepoSense AI" className="w-8 h-8 rounded-lg" />
               <span className="font-display font-bold text-lg text-white">RepoSense AI</span>
             </div>
             <p className="text-xs leading-relaxed">
@@ -1162,7 +1171,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               We strictly access reading operations on public endpoints only. No writing or editing permissions required. Fast, sandbox-safe execution.
             </p>
             <p className="text-xs text-purple-400">
-              © 2026 RepoSense AI. Powered by Google Gemini.
+              © 2026 RepoSense AI. Powered by NVIDIA LLM API.
             </p>
           </div>
         </div>

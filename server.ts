@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, Type } from "@google/genai";
+
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 
@@ -53,25 +53,29 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Initialize Gemini lazily
-let aiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI {
-  if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is required");
-    }
-    aiClient = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
+// In-memory cache for AI API results (1-hour TTL)
+const analysisCache = new Map<string, { result: any; timestamp: number }>();
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function getCachedResult(key: string): any | null {
+  const cached = analysisCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    console.log(`[Cache] Hit for key: ${key}`);
+    return cached.result;
   }
-  return aiClient;
+  if (cached) analysisCache.delete(key);
+  return null;
 }
+
+function setCachedResult(key: string, result: any): void {
+  analysisCache.set(key, { result, timestamp: Date.now() });
+  // Evict oldest entries if cache exceeds 100 entries
+  if (analysisCache.size > 100) {
+    const oldestKey = analysisCache.keys().next().value;
+    if (oldestKey) analysisCache.delete(oldestKey);
+  }
+}
+
 
 // Helper to parse GitHub repository URL
 function parseGitHubUrl(repoUrl: string) {
@@ -160,7 +164,12 @@ function extractJson(text: string) {
 
 
 
-// REST route for code/repo analysis
+// SSE helper to write a typed event
+function sendSSE(res: express.Response, data: Record<string, any>) {
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+// REST route for code/repo analysis (SSE streaming)
 app.post("/api/analyze", async (req, res) => {
   console.log("[API] Analyze route hit");
   const { url, userId } = req.body;
@@ -182,6 +191,21 @@ app.post("/api/analyze", async (req, res) => {
   console.log("✓ Repository parsed:", `${owner}/${repo}`);
   console.log(`[RepoSense Engine] Starting dual-phase parse for: ${owner}/${repo}`);
 
+  // Check cache first
+  const cacheKey = `${owner}/${repo}`;
+  const cachedResult = getCachedResult(cacheKey);
+  if (cachedResult) {
+    console.log(`[Cache] Returning cached result for ${cacheKey}`);
+    // Cache hit — return as SSE done event so frontend handles it uniformly
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+    sendSSE(res, { type: "done", report: cachedResult });
+    return res.end();
+  }
+
   // Base setup headers backed by GITHUB_TOKEN if available to prevent API rate-limits
   const headers: Record<string, string> = {
     "User-Agent": "RepoSense-AI-App",
@@ -198,7 +222,7 @@ app.post("/api/analyze", async (req, res) => {
   let filesContext: Record<string, string> = {};
   let apiSuccess = false;
   let filePathsInRepo: string[] = [];
-  let recentCommits: any[] = [];
+  let gitTree: any[] = [];
 
   try {
     console.log("[Analyze] Calling GitHub API");
@@ -223,43 +247,26 @@ app.post("/api/analyze", async (req, res) => {
     apiSuccess = true;
     console.log("✓ Repository metadata fetched");
 
-    // 2. Fetch Languages Used
-    try {
-      const langRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/languages`, { headers });
-      if (langRes.ok) {
-        repoLanguages = await langRes.json();
-        console.log("✓ Languages fetched:", Object.keys(repoLanguages));
-      }
-    } catch (langErr) {
-      console.warn("Failed to retrieve language statistics:", langErr);
-    }
+    // Parallel fetch: languages and git tree
+    const branch = repoMeta.default_branch || "main";
+    const [langResult, treeResult] = await Promise.allSettled([
+      // 2. Fetch Languages
+      fetch(`https://api.github.com/repos/${owner}/${repo}/languages`, { headers })
+        .then(r => r.ok ? r.json() : {}),
+      // 3. Fetch Recursive Git Tree
+      fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, { headers })
+        .then(r => r.ok ? r.json() : null)
+    ]);
 
-    // 3. Fetch Recent Commits (for maintenance & statistics)
-    try {
-      const commitsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=10`, { headers });
-      if (commitsRes.ok) {
-        recentCommits = await commitsRes.json();
-        console.log(`✓ Fetched recent commits: ${recentCommits.length}`);
-      }
-    } catch (commitsErr) {
-      console.warn("Failed to fetch commits:", commitsErr);
+    // Extract results from parallel fetches
+    if (langResult.status === "fulfilled") {
+      repoLanguages = langResult.value;
+      console.log("✓ Languages fetched:", Object.keys(repoLanguages));
     }
-
-    // 4. Fetch Recursive Git Tree to get complete file map
-    let gitTree: any[] = [];
-    try {
-      const branch = repoMeta.default_branch || "main";
-      const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, { headers });
-      if (treeRes.ok) {
-        const treeData = await treeRes.json();
-        if (treeData && Array.isArray(treeData.tree)) {
-          gitTree = treeData.tree;
-          filePathsInRepo = gitTree.map((node: any) => node.path);
-          console.log(`✓ Git tree fetched recursively. Total nodes: ${gitTree.length}`);
-        }
-      }
-    } catch (treeErr) {
-      console.warn("Failed to fetch recursive git tree:", treeErr);
+    if (treeResult.status === "fulfilled" && treeResult.value && Array.isArray(treeResult.value.tree)) {
+      gitTree = treeResult.value.tree;
+      filePathsInRepo = gitTree.map((node: any) => node.path);
+      console.log(`✓ Git tree fetched recursively. Total nodes: ${gitTree.length}`);
     }
 
     // 5. Fallback directory contents fetch if recursive tree failed
@@ -313,7 +320,7 @@ app.post("/api/analyze", async (req, res) => {
           const rawRes = await fetch(rawUrl, { headers });
           if (rawRes.ok) {
             const text = await rawRes.text();
-            filesContext[fileInfo.name] = text.substring(0, 5000);
+            filesContext[fileInfo.name] = text.substring(0, 500);
             if (fileInfo.name.toLowerCase() === "readme.md") {
               readmeContent = text;
             }
@@ -332,7 +339,7 @@ app.post("/api/analyze", async (req, res) => {
         );
         if (rawReadmeRes.ok) {
           readmeContent = await rawReadmeRes.text();
-          filesContext["README.md"] = readmeContent.substring(0, 5000);
+          filesContext["README.md"] = readmeContent.substring(0, 500);
         }
       } catch (readmeErr) {
         console.warn("README raw recovery failed:", readmeErr);
@@ -369,7 +376,7 @@ app.post("/api/analyze", async (req, res) => {
     str.includes("curriculum") || str.includes("assignment") || str.includes("classwork") ||
     str.includes("sandbox") || str.includes("example") || str.includes("demo-");
 
-  if (isLearningKeyword(repoNameLower) || isLearningKeyword(repoDescLower) || repoTopics.some(t => isLearningKeyword(t))) {
+  if (isLearningKeyword(repoNameLower) || isLearningKeyword(repoDescLower) || repoTopics.some((t: string) => isLearningKeyword(t))) {
     if (repoNameLower.includes("course") || repoDescLower.includes("course") || repoTopics.includes("course") || repoTopics.includes("class")) {
       detectedRepoType = "Course Repository";
     } else {
@@ -417,7 +424,7 @@ app.post("/api/analyze", async (req, res) => {
       str.includes("chatbot") || str.includes("gpt") || str.includes("claude") ||
       str.includes("llama") || str.includes("text-generation");
       
-    if (isAiKeyword(repoNameLower) || isAiKeyword(repoDescLower) || isAiKeyword(allFilesContextStr) || repoTopics.some(t => isAiKeyword(t))) {
+    if (isAiKeyword(repoNameLower) || isAiKeyword(repoDescLower) || isAiKeyword(allFilesContextStr) || repoTopics.some((t: string) => isAiKeyword(t))) {
       detectedRepoType = "AI Project";
     } else {
       detectedRepoType = "Machine Learning";
@@ -456,98 +463,6 @@ app.post("/api/analyze", async (req, res) => {
   } else {
     detectedRepoType = "Web Application";
   }
-
-  // Calculate dynamic, programmatic health scores based on real repository contents
-  const scoreResults = (() => {
-    const readmeText = readmeContent || "";
-    const filePathsLower = filePathsInRepo.map(f => f.toLowerCase());
-    
-    // 1. Documentation Score (Max 100)
-    let docPoints = 0;
-    if (readmeText.trim().length > 0) docPoints += 40;
-    if (readmeText.trim().length > 1000) docPoints += 20;
-    if (readmeText.trim().length > 4000) docPoints += 20;
-    
-    const hasLicense = filePathsLower.some(f => f.includes("license") || f.includes("copying"));
-    const hasContributing = filePathsLower.some(f => f.includes("contributing"));
-    const hasDocsDir = filePathsLower.some(f => f.includes("docs/") || f.includes("doc/") || f === "docs" || f === "doc");
-    
-    if (hasLicense) docPoints += 10;
-    if (hasContributing) docPoints += 5;
-    if (hasDocsDir) docPoints += 5;
-    const documentation = Math.min(100, Math.max(25, docPoints));
-
-    // 2. Architecture & Project Structure Score (Max 100)
-    let archPoints = 30;
-    const hasCodeDir = filePathsLower.some(f => f.startsWith("src/") || f.startsWith("lib/") || f.startsWith("app/") || f.startsWith("components/") || f.startsWith("api/"));
-    const hasConfigs = filePathsLower.some(f => f.endsWith(".json") || f.endsWith(".toml") || f.endsWith(".yaml") || f.endsWith(".config.js") || f.endsWith(".config.ts"));
-    if (hasCodeDir) archPoints += 40;
-    if (hasConfigs) archPoints += 15;
-    if (filePathsInRepo.length > 10) archPoints += 10;
-    if (filePathsInRepo.length > 30) archPoints += 5;
-    const architecture = Math.min(100, Math.max(30, archPoints));
-
-    // 3. Code Quality & Testing Score (Max 100)
-    let qualityPoints = 30;
-    const hasTests = filePathsLower.some(f => f.includes("test") || f.includes("spec") || f.includes("__tests__") || f.includes("jest.config") || f.includes("vitest.config") || f.includes("pytest"));
-    const hasLint = filePathsLower.some(f => f.includes("eslint") || f.includes("prettier") || f.includes("tsconfig.json") || f.includes("pylint") || f.includes("rustfmt"));
-    if (hasTests) qualityPoints += 45;
-    if (hasLint) qualityPoints += 25;
-    const codeQuality = Math.min(100, Math.max(30, qualityPoints));
-
-    // 4. Maintainability & Recent Activity Score (Max 100)
-    let maintPoints = 40;
-    if (repoMeta?.pushed_at) {
-      const lastPush = new Date(repoMeta.pushed_at);
-      const diffDays = (Date.now() - lastPush.getTime()) / (1000 * 60 * 60 * 24);
-      if (diffDays < 14) maintPoints += 30;
-      else if (diffDays < 30) maintPoints += 25;
-      else if (diffDays < 90) maintPoints += 15;
-      else if (diffDays < 180) maintPoints += 5;
-    } else {
-      maintPoints += 10;
-    }
-    
-    const hasLock = filePathsLower.some(f => f.includes("lock") || f.endsWith(".sum") || f.endsWith(".lock"));
-    if (hasLock) maintPoints += 15;
-    
-    const openIssues = repoMeta?.open_issues_count ?? 0;
-    const stars = repoMeta?.stargazers_count ?? 0;
-    if (openIssues === 0) maintPoints += 15;
-    else if (openIssues < 5) maintPoints += 12;
-    else if (openIssues < stars * 0.1) maintPoints += 10;
-    else maintPoints += 5;
-    
-    const maintainability = Math.min(100, Math.max(30, maintPoints));
-
-    // 5. Scalability Score (Max 100)
-    let scalePoints = 30;
-    if (repoMeta?.size && repoMeta.size > 3000) scalePoints += 15;
-    if (filePathsInRepo.length > 25) scalePoints += 15;
-    
-    const hasDevOps = filePathsLower.some(f => f.includes("docker") || f.includes("github/workflows") || f.includes("kubernetes") || f.includes("gitlab-ci") || f.includes("travis.yml") || f.includes("circleci"));
-    if (hasDevOps) scalePoints += 40;
-    const scalability = Math.min(100, Math.max(30, scalePoints));
-
-    const healthScore = Math.round(
-      documentation * 0.25 +
-      architecture * 0.20 +
-      codeQuality * 0.20 +
-      maintainability * 0.20 +
-      scalability * 0.15
-    );
-
-    return {
-      healthScore,
-      healthMetrics: {
-        documentation,
-        architecture,
-        codeQuality,
-        maintainability,
-        scalability
-      }
-    };
-  })();
 
   // Programmatically detect exact Tech Stack
   const techMetadata = (() => {
@@ -720,7 +635,7 @@ Languages breakdown from GitHub: ${JSON.stringify(repoLanguages)}
 Topics: ${JSON.stringify(repoTopics)}
 
 ACTUAL FILE PATHS FROM REPOSITORY (use these to generate the exact folder tree, do NOT invent folders):
-${JSON.stringify(filePathsInRepo.slice(0, 40))}
+${JSON.stringify(filePathsInRepo.slice(0, 25))}
 
 STRICT PROGRAMMATIC STACK CLUES (DO NOT DEVIATE OR INVENT TECHNOLOGIES BEYOND THESE GROUND TRUTHS):
 - Languages: ${JSON.stringify(techMetadata.languages)}
@@ -732,19 +647,12 @@ STRICT PROGRAMMATIC STACK CLUES (DO NOT DEVIATE OR INVENT TECHNOLOGIES BEYOND TH
 EXTRACTED SEED CONTENTS FOR SOURCE CLUES:
 ${Object.entries(filesContext).map(([name, body]) => `
 --- File: ${name} ---
-${body.substring(0, 3000)}
+${body.substring(0, 500)}
 `).join("\n")}
 
 =========================================
 
 ${dynamicSectionGuidance}
-
-STRICT ARCHITECTURE EVIDENCE VERIFICATION:
-The computed architecture confidence for this repository is: ${isArchitectureConfident}.
-- Since isArchitectureConfident is ${isArchitectureConfident}:
-  - Set "architectureConfident" inside the JSON to exactly: ${isArchitectureConfident}.
-  - If isArchitectureConfident is false: You MUST set "architectureExplanation" inside "aiInsights" to EXACTLY: "Architecture information not confidently detected." Do not invent any React, Express, Supabase, or AI pipelines.
-  - If isArchitectureConfident is true: Provide an excellent "architectureExplanation" detailing actual data flows between the detected layers in the files.
 
 Analyze this codebase extensively. Generate a structured, professional architectural report in JSON following this JSON schema:
 
@@ -754,11 +662,11 @@ Analyze this codebase extensively. Generate a structured, professional architect
   "stars": number,
   "forks": number,
   "openIssues": number,
-  "repoType": "${detectedRepoType}",
-  "architectureConfident": ${isArchitectureConfident},
+  "repoType": "Determine the most accurate category based on the actual code and configuration: Web Application, Mobile App, Library, CLI Tool, API Service, AI Project, Machine Learning, Portfolio, Learning Repository, Course Repository, Documentation, Research Project, Data Repository, Configuration Repository, or Software Project.",
+  "architectureConfident": "Set to true if you can confidently identify the architecture from the file structure and contents. Set to false if the repo is too small, empty, or lacks clear structure.",
   "summary": {
-    "projectOverview": "Detailed, highly thorough 2-3 paragraph markdown-formatted overview explaining the repository, its value proposition, who it is for, and how it delivers value, fully adapted to the ${detectedRepoType} requirements.",
-    "purpose": "A concise explanation of the core technical challenge this code addresses.",
+    "projectOverview": "2-3 SHORT sentences max. What it is, who it's for, and why it matters. No fluff, no paragraphs.",
+    "purpose": "1-2 sentences. The core problem this repo solves and why it's useful.",
     "mainFunctionality": ["Bullet point list of major interactive features and functionalities built into the code"]
   },
   "techStack": {
@@ -785,17 +693,25 @@ Analyze this codebase extensively. Generate a structured, professional architect
   "aiInsights": {
     "strengths": ["Clear bullets of design strengths, design patterns, quality choices, etc."],
     "suggestions": ["Clear improvements or optimizations (e.g. security checks, bundle optimization, missing files, or architectural updates)"],
-    "architectureExplanation": "If 'architectureConfident' is true, write a detailed breakdown. If 'architectureConfident' is false, write EXACTLY: 'Architecture information not confidently detected.'"
+    "architectureExplanation": "A clear breakdown of the architecture, data flows, and component interactions based on what you find in the code."
   },
   "stats": {
     "filesAnalyzed": number (estimated count of total files in the codebase, e.g. 15 to 250),
     "technologiesCount": number (total count of discrete tools, databases, and languages detected, e.g., 3 to 15),
     "estimatedSizeKb": number (size in KB from metadata),
     "complexityScore": "Low" | "Medium" | "High" (the level of technical sophistication)
+  },
+  "healthScore": number (overall health score 0-100 based on documentation quality, code organization, testing, tooling, and project maturity),
+  "healthMetrics": {
+    "documentation": number (0-100, based on README quality, docs directory, comments, JSDoc/typedoc presence),
+    "architecture": number (0-100, based on folder structure, separation of concerns, modularity),
+    "codeQuality": number (0-100, based on linting config, test presence, type safety, code patterns),
+    "maintainability": number (0-100, based on dependency management, lock files, recent activity, issue management),
+    "scalability": number (0-100, based on CI/CD, Docker, deployment configs, modular architecture)
   }
 }
 
-Ensure all texts, titles, steps, and overview values are beautifully styled in Markdown with rich typography spacing! Do not output any conversational prefixes. Return only the JSON.
+Ensure all texts are short, punchy, and written in plain text without any markdown formatting. Do not use **bold**, backticks, or headers. Do not output any conversational prefixes. Return only the JSON.
 `;
   } else {
     // Advanced dynamically mapped prediction projection fallback (No generic static React/Express/Supabase!)
@@ -827,8 +743,8 @@ Provide the complete analysis in the exact same JSON format:
   "stars": 34,
   "forks": 5,
   "openIssues": 1,
-  "repoType": "${detectedRepoType}",
-  "architectureConfident": ${isArchitectureConfident},
+  "repoType": "Determine the most accurate category based on the actual code and configuration.",
+  "architectureConfident": true,
   "summary": {
     "projectOverview": "Analytical projection of ${repo}, detailing the technical capabilities and expected execution flow for a ${detectedRepoType}.",
     "purpose": "A technical assessment of why this codebase structure was built.",
@@ -858,13 +774,21 @@ Provide the complete analysis in the exact same JSON format:
   "aiInsights": {
     "strengths": ["Expected clean modular design layout"],
     "suggestions": ["Upgrade dependencies and establish proper automation workflows"],
-    "architectureExplanation": "If 'architectureConfident' is true, write a detailed breakdown. If 'architectureConfident' is false, write EXACTLY: 'Architecture information not confidently detected.'"
+    "architectureExplanation": "A clear breakdown of the architecture, data flows, and component interactions based on what you find in the code."
   },
   "stats": {
     "filesAnalyzed": 14,
     "technologiesCount": 6,
     "estimatedSizeKb": 120,
     "complexityScore": "Medium"
+  },
+  "healthScore": 50,
+  "healthMetrics": {
+    "documentation": 50,
+    "architecture": 50,
+    "codeQuality": 50,
+    "maintainability": 50,
+    "scalability": 50
   }
 }
 
@@ -882,125 +806,163 @@ Return only the JSON.
 
     const nvidiaApiKey = process.env.NVIDIA_API_KEY;
     const requestUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-    const modelName = "deepseek-ai/deepseek-v4-flash";
+    const modelName = "mistralai/mistral-medium-3.5-128b";
+    const MAX_RETRIES = 1;
+    const BASE_DELAY_MS = 1000;
 
-    console.log(`Using model: ${modelName}`);
-    console.log(`[NVIDIA Request] Request URL: ${requestUrl}`);
-    console.log(`[NVIDIA Request] Model Name: ${modelName}`);
-    console.log("✓ NVIDIA request sent");
+    // Set SSE headers for streaming (after all GitHub API validation is complete)
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000);
+    // Signal to client that GitHub data is ready and AI generation is starting
+    sendSSE(res, { type: "start" });
 
-    let response;
+    let response: Response | null = null;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      try {
+        if (attempt > 0) {
+          const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          console.log(`[AI Retry] Attempt ${attempt}/${MAX_RETRIES} after ${delay}ms delay`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        console.log("[Analyze] Calling LLM API" + (attempt > 0 ? ` (attempt ${attempt + 1})` : "") + ` model: ${modelName}`);
+        response = await fetch(requestUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${nvidiaApiKey}`
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              {
+                role: "system",
+                content: "You are RepoSense AI, an exceptional full-stack developer and system architect. Your goal is to return a strict, valid JSON string following the requested format schema exactly. Be concise — every text field should be short, punchy, and to the point. No fluff, no long paragraphs. Do not add any extra preambles, chat prefixes, or post texts. Write all text fields in plain text only — do not use any markdown formatting such as **bold**, backticks, or headers."
+              },
+              {
+                role: "user",
+                content: contextPrompt
+              }
+            ],
+            temperature: 0.2,
+            max_tokens: 4096,
+            top_p: 0.9,
+            stream: true
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.status === 429 && attempt < MAX_RETRIES) {
+          console.warn(`[AI] Rate limited (429), will retry...`);
+          continue;
+        }
+
+        break; // success or non-retryable error
+
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId);
+
+        if (fetchErr.name === "AbortError" || fetchErr.message?.includes("aborted")) {
+          if (attempt < MAX_RETRIES) {
+            console.warn(`[AI] Request timed out, will retry...`);
+            continue;
+          }
+          console.warn(`[AI] Model ${modelName} timed out.`);
+        } else if (attempt < MAX_RETRIES) {
+          console.warn(`[AI] Network error, will retry:`, fetchErr.message);
+          continue;
+        } else {
+          console.warn(`[AI] Model ${modelName} failed:`, fetchErr.message);
+        }
+        break;
+      }
+    }
+
+    if (!response || !response.ok) {
+      const status = response?.status || 0;
+      const errText = response ? await response.text() : "No response from LLM API";
+      console.error(`[AI Error] Status: ${status}`);
+      console.error(`[AI Error] Response: ${errText}`);
+
+      if (status === 401) {
+        sendSSE(res, { type: "error", message: "Invalid API key.", errorType: "Authentication Failed" });
+      } else if (status === 403) {
+        sendSSE(res, { type: "error", message: "Access Forbidden.", errorType: "Authorization Failed" });
+      } else if (status === 429) {
+        sendSSE(res, { type: "error", message: "API rate limit exceeded. Please wait and try again.", errorType: "Rate Limit" });
+      } else {
+        sendSSE(res, { type: "error", message: `API error: status ${status}`, errorType: "AI Error" });
+      }
+      return res.end();
+    }
+
+    console.log(`✓ AI streaming response received (model: ${modelName})`);
+    console.log(`[AI Response] Status Code: ${response.status}`);
+
+    // Stream the response and collect full content
+    const reader = response.body?.getReader();
+    if (!reader) {
+      sendSSE(res, { type: "error", message: "Failed to read AI streaming response.", errorType: "Stream Error" });
+      return res.end();
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
     try {
-      console.log("[Analyze] Calling NVIDIA API");
-      response = await fetch(requestUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${nvidiaApiKey}`
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages: [
-            {
-              role: "system",
-              content: "You are RepoSense AI, an exceptional full-stack developer and system architect. Your goal is to return a strict, valid JSON string following the requested format schema exactly. Do not add any extra preambles, chat prefixes, or post texts. Markdown rendering inside JSON properties is fully supported."
-            },
-            {
-              role: "user",
-              content: contextPrompt
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          const payload = trimmed.slice(6);
+          if (payload === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(payload);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              rawAiResult += delta;
+              sendSSE(res, { type: "chunk", content: delta });
             }
-          ],
-          temperature: 0.2,
-          max_tokens: 2800
-        }),
-        signal: controller.signal
-      });
-    } catch (fetchErr: any) {
-      if (fetchErr.name === "AbortError" || fetchErr.message?.includes("aborted")) {
-        return res.status(504).json({
-          error: "NVIDIA API request timed out.",
-          details: "The NVIDIA Foundation AI Engine did not respond within the 90-second window."
-        });
+            const finishReason = parsed.choices?.[0]?.finish_reason;
+            if (finishReason === "length") {
+              console.warn("[AI] Model hit max_tokens limit — response may be truncated.");
+            }
+          } catch {
+            // skip malformed SSE chunks
+          }
+        }
       }
-      throw fetchErr;
     } finally {
-      clearTimeout(timeoutId);
+      reader.releaseLock();
     }
 
-    console.log("✓ NVIDIA response received");
-    console.log(`[NVIDIA Response] Status Code: ${response.status}`);
-
-    if (!response.ok) {
-      const errText = await response.text();
-
-      const responseHeaders: Record<string, string> = {};
-      response.headers.forEach((val, key) => {
-        responseHeaders[key] = val;
-      });
-
-      console.error("[NVIDIA Error Log]");
-      console.error(`Status Code: ${response.status}`);
-      console.error(`Headers:`, responseHeaders);
-      console.error(`Response Body: ${errText}`);
-      console.error(`Model Name: ${modelName}`);
-      console.error(`Endpoint URL: ${requestUrl}`);
-
-      if (response.status === 401) {
-        console.error("[NVIDIA Error] Unauthorized (401): Invalid API key provided.");
-        return res.status(401).json({
-          success: false,
-          error: "Invalid NVIDIA API key.",
-          errorType: "NVIDIA Authentication Failed",
-          details: "The configured NVIDIA_API_KEY is unauthorized or invalid. Please verify your credentials."
-        });
-      }
-
-      if (response.status === 403) {
-        console.error("[NVIDIA Error] Forbidden (403): Access is blocked or unauthorized.");
-        return res.status(403).json({
-          success: false,
-          error: "NVIDIA Access Forbidden.",
-          errorType: "NVIDIA Authorization Failed",
-          details: "The configured NVIDIA_API_KEY does not have permissions or access was forbidden."
-        });
-      }
-
-      if (response.status === 404) {
-        console.error(`[NVIDIA Error] Not Found (404): The requested model '${modelName}' is not available.`);
-        return res.status(404).json({
-          success: false,
-          error: "Model not available.",
-          errorType: "NVIDIA Model Unavailable",
-          details: `The requested model '${modelName}' was not found or is not currently available at this endpoint.`
-        });
-      }
-
-      if (response.status === 429) {
-        console.error("[NVIDIA Error] Too Many Requests (429): NVIDIA API rate limit exceeded.");
-        return res.status(429).json({
-          error: "NVIDIA API rate limit exceeded.",
-          details: "The NVIDIA API rate limit has been reached. Please wait a moment and try again."
-        });
-      }
-
-      return res.status(response.status).json({
-        error: `NVIDIA API error: received status code ${response.status}`,
-        details: errText || response.statusText
-      });
-    }
-
-    const payload: any = await response.json();
-    rawAiResult = payload.choices?.[0]?.message?.content || "";
+    console.log("✓ AI streaming complete");
+    console.log(`[AI] Total content length: ${rawAiResult.length} chars`);
 
     let parsedData;
     try {
       parsedData = extractJson(rawAiResult);
     } catch (parseErr: any) {
-      console.error("[NVIDIA Parse Error] Failed to parse JSON from model response:", parseErr.message);
-      console.error("[NVIDIA Raw Response Content]:\n", rawAiResult);
+      console.error("[AI Parse Error] Failed to parse JSON from model response:", parseErr.message);
+      console.error("[AI Raw Response Content]:\n", rawAiResult);
       throw parseErr;
     }
     
@@ -1036,10 +998,16 @@ Return only the JSON.
       stars: typeof parsedData.stars === "number" ? parsedData.stars : (repoMeta?.stargazers_count ?? 0),
       forks: typeof parsedData.forks === "number" ? parsedData.forks : (repoMeta?.forks_count ?? 0),
       openIssues: typeof parsedData.openIssues === "number" ? parsedData.openIssues : (repoMeta?.open_issues_count ?? 0),
-      repoType: parsedData.repoType || detectedRepoType,
-      architectureConfident: parsedData.architectureConfident !== undefined ? parsedData.architectureConfident : isArchitectureConfident,
-      healthScore: scoreResults.healthScore,
-      healthMetrics: scoreResults.healthMetrics,
+      repoType: parsedData.repoType || "Software Project",
+      architectureConfident: parsedData.architectureConfident ?? true,
+      healthScore: typeof parsedData.healthScore === "number" ? parsedData.healthScore : 50,
+      healthMetrics: parsedData.healthMetrics || {
+        documentation: 50,
+        architecture: 50,
+        codeQuality: 50,
+        maintainability: 50,
+        scalability: 50
+      },
       summary: parsedData.summary || {
         projectOverview: parsedData.description || "Project representation.",
         purpose: "Repository audit.",
@@ -1063,9 +1031,7 @@ Return only the JSON.
       aiInsights: {
         strengths: parsedData.aiInsights?.strengths || ["Clear directory alignment"],
         suggestions: parsedData.aiInsights?.suggestions || ["Incorporate test runners"],
-        architectureExplanation: (parsedData.architectureConfident === false || isArchitectureConfident === false || parsedData.aiInsights?.architectureExplanation?.includes("not confidently detected"))
-          ? "Architecture information not confidently detected."
-          : (parsedData.aiInsights?.architectureExplanation || "Single SPA standard codebase.")
+        architectureExplanation: parsedData.aiInsights?.architectureExplanation || "Architecture analysis based on available code structure."
       },
       stats: parsedData.stats || {
         filesAnalyzed: filePathsInRepo.length || 10,
@@ -1076,16 +1042,16 @@ Return only the JSON.
       analyzedAt: new Date().toISOString()
     };
 
-    console.log("✓ Analysis generated via NVIDIA Foundation AI");
+    console.log("✓ Analysis generated via LLM");
 
-    // Save to Supabase tables on successful analysis
+    // Save to Supabase tables on successful analysis (non-blocking - fire and forget)
     if (supabaseAdmin) {
-      try {
-        const reportId = finalReport.id;
-        const auditUserId = userId || null;
+      const reportId = finalReport.id;
+      const auditUserId = userId || null;
 
-        // 1. Save to standard repository_analyses requested field schema
-        const { error: analysesErr } = await supabaseAdmin
+      // Fire-and-forget: don't await, let it run in background
+      Promise.allSettled([
+        supabaseAdmin
           .from("repository_analyses")
           .upsert({
             id: reportId,
@@ -1095,16 +1061,8 @@ Return only the JSON.
             summary: finalReport.summary.projectOverview,
             analysis_result: finalReport,
             created_at: new Date().toISOString()
-          });
-
-        if (analysesErr) {
-          console.error("[Supabase Admin] Insertion error into `repository_analyses`:", analysesErr);
-        } else {
-          console.log("[Supabase Admin] Successfully saved report in `repository_analyses` table.");
-        }
-
-        // 2. Save to secondary reposense_reports for seamless dual compatible lookup
-        await supabaseAdmin
+          }),
+        supabaseAdmin
           .from("reposense_reports")
           .upsert({
             id: reportId,
@@ -1124,30 +1082,34 @@ Return only the JSON.
             ai_insights: finalReport.aiInsights,
             stats: finalReport.stats,
             analyzed_at: new Date().toISOString()
-          });
-          
-      } catch (dbErr) {
-        console.error("[Supabase Admin] Exception while backing up to Cloud DB:", dbErr);
-      }
+          })
+      ]).then(results => {
+        results.forEach((r, i) => {
+          if (r.status === "rejected") {
+            console.error(`[Supabase] Background save error (table ${i === 0 ? 'repository_analyses' : 'reposense_reports'}):`, r.reason);
+          } else {
+            console.log(`[Supabase] Background save successful (table ${i === 0 ? 'repository_analyses' : 'reposense_reports'})`);
+          }
+        });
+      }).catch(dbErr => {
+        console.error("[Supabase] Background save exception:", dbErr);
+      });
     }
 
-    console.log("[Analyze] Returning JSON response");
-    return res.json(finalReport);
+    console.log("[Analyze] Returning SSE done event");
+    // Cache the result for future requests
+    setCachedResult(cacheKey, finalReport);
+    sendSSE(res, { type: "done", report: finalReport });
+    return res.end();
 
   } catch (err: any) {
     console.error("[RepoSense] Analysis pipeline error:", err);
     if (err.message === "NVIDIA API key not configured") {
-      return res.status(500).json({
-        error: "NVIDIA_API_KEY environment variable not found",
-        errorType: "NVIDIA Authentication Failed",
-        details: "NVIDIA API key not configured"
-      });
+      sendSSE(res, { type: "error", message: "NVIDIA_API_KEY environment variable not found", errorType: "Authentication Failed" });
+      return res.end();
     }
-    return res.status(500).json({
-      error: "Failed to generate report from repository.",
-      details: err.message || err,
-      rawAiResult: rawAiResult || undefined
-    });
+    sendSSE(res, { type: "error", message: err.message || "Failed to generate report from repository.", errorType: "Analysis Error" });
+    return res.end();
   }
 });
 
@@ -1182,9 +1144,7 @@ async function startServer() {
   });
 }
 
-try {
-  startServer();
-} catch (startupErr: any) {
+startServer().catch((startupErr: any) => {
   console.error("=== BACKEND STARTUP EXCEPTION ===");
   console.error(startupErr.stack || startupErr.message || startupErr);
-}
+});

@@ -49,6 +49,7 @@ export interface HealthMetrics {
   scalability: number;
 }
 
+
 export interface AnalysisReport {
   id: string;
   owner: string;

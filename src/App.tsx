@@ -150,6 +150,9 @@ export default function App() {
     }
     try {
       localStorage.removeItem("reposense_user");
+      // Clean up old shared keys that are no longer used (pre-user-scoping)
+      localStorage.removeItem("reposense_history");
+      localStorage.removeItem("reposense_favorites");
     } catch (e) {
       console.error("Failed to remove user session:", e);
     }
@@ -238,6 +241,7 @@ export default function App() {
             <Dashboard 
               initialUrl={initialUrl} 
               onLogout={handleLogout} 
+              user={user}
             />
           </motion.div>
         )}

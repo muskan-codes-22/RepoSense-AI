@@ -45,14 +45,30 @@ import {
   Cloud,
   TrendingUp,
   Award,
-  BookMarked
+  BookMarked,
+  Brain
 } from "lucide-react";
 import { AnalysisReport } from "../types";
 import { supabase } from "../lib/supabase";
+import OnboardingTooltip from "./OnboardingTooltip";
+
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/`(.*?)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .trim();
+}
 
 interface DashboardProps {
   initialUrl?: string;
   onLogout: () => void;
+  user?: {
+    id: string;
+    email: string;
+    fullName: string;
+    avatarUrl?: string;
+  } | null;
 }
 
 enum SidebarTab {
@@ -73,14 +89,16 @@ enum AnalysisTab {
   STATS = "stats"
 }
 
-export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
+
+
+export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>(SidebarTab.DASHBOARD);
   const [repoUrl, setRepoUrl] = useState(initialUrl || "");
 
-  // Favorites state manager
+  // Favorites state manager (user-scoped localStorage)
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem("reposense_favorites");
+      const saved = localStorage.getItem("reposense_favorites_" + user?.id);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -93,10 +111,12 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
   // Code step copy confirmation mapping state
   const [copiedStepIndex, setCopiedStepIndex] = useState<number | null>(null);
 
-  // Synced effect for Favorites local cache
+  // Synced effect for Favorites local cache (user-scoped)
   useEffect(() => {
-    localStorage.setItem("reposense_favorites", JSON.stringify(favorites));
-  }, [favorites]);
+    if (user?.id) {
+      localStorage.setItem("reposense_favorites_" + user.id, JSON.stringify(favorites));
+    }
+  }, [favorites, user?.id]);
 
   const toggleFavorite = (url: string) => {
     if (favorites.includes(url)) {
@@ -120,6 +140,13 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
   const [historyReports, setHistoryReports] = useState<AnalysisReport[]>([]);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<AnalysisTab>(AnalysisTab.SUMMARY);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    // Only show for real (non-demo) users on their first visit
+    if (user?.id && !user.id.startsWith("usr_demo")) {
+      return !localStorage.getItem("reposense_onboarded_" + user.id);
+    }
+    return false;
+  });
 
   const activeScore = activeReport?.healthScore !== undefined
     ? activeReport.healthScore
@@ -159,9 +186,9 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
   // Load history on mount (supporting local cache + Cloud Supabase backups)
   useEffect(() => {
     const fetchHistory = async () => {
-      // 1. Load from local cache first for instant responsiveness
+      // 1. Load from local cache first for instant responsiveness (user-scoped)
       try {
-        const stored = localStorage.getItem("reposense_history");
+        const stored = localStorage.getItem("reposense_history_" + user?.id);
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) {
@@ -235,7 +262,9 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
 
           if (records.length > 0) {
             setHistoryReports(records);
-            localStorage.setItem("reposense_history", JSON.stringify(records));
+            if (user?.id) {
+              localStorage.setItem("reposense_history_" + user.id, JSON.stringify(records));
+            }
           }
         }
       } catch (err) {
@@ -258,9 +287,11 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
     const updated = [newReport, ...historyReports.filter(h => h.url !== newReport.url)];
     setHistoryReports(updated);
     
-    // Save locally
+    // Save locally (user-scoped)
     try {
-      localStorage.setItem("reposense_history", JSON.stringify(updated));
+      if (user?.id) {
+        localStorage.setItem("reposense_history_" + user.id, JSON.stringify(updated));
+      }
     } catch (e) {
       console.error("Failed to save history locally:", e);
     }
@@ -324,7 +355,9 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
     setHistoryReports(updated);
     
     try {
-      localStorage.setItem("reposense_history", JSON.stringify(updated));
+      if (user?.id) {
+        localStorage.setItem("reposense_history_" + user.id, JSON.stringify(updated));
+      }
       if (activeReport?.id === id) {
         setActiveReport(null);
       }
@@ -364,7 +397,9 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
   const handleClearAllHistory = async () => {
     setHistoryReports([]);
     try {
-      localStorage.removeItem("reposense_history");
+      if (user?.id) {
+        localStorage.removeItem("reposense_history_" + user.id);
+      }
       setActiveReport(null);
     } catch (e) {
       console.error("Failed to clear history locally:", e);
@@ -397,7 +432,7 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
     }
   };
 
-  // Start analyzer call
+  // Start analyzer call (SSE streaming)
   const triggerAnalysis = async (urlToAnalyze: string) => {
     const target = urlToAnalyze.trim();
     if (!target) return;
@@ -408,13 +443,38 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
     setErrorType("Extraction Error");
     setActiveReport(null);
 
-    // Dynamic step interval for 6 consecutive loading steps matching requirements
-    const stepInterval = setInterval(() => {
-      setAnalysisStep((prev) => {
-        if (prev < 5) return prev + 1;
-        return prev;
-      });
-    }, 1800);
+    // Timer-based staged progression — advance through stages 1-6 with 5s gaps
+    // while the backend works at its own speed
+    const pendingStageTimers: ReturnType<typeof setTimeout>[] = [];
+    let lastStageTime = Date.now();
+    let currentStep = 0;
+    const MIN_STAGE_MS = 5000;
+    const advanceStage = (step: number) => {
+      if (step <= currentStep) return;
+      const now = Date.now();
+      const elapsed = now - lastStageTime;
+      const doAdvance = () => {
+        currentStep = step;
+        setAnalysisStep(currentStep);
+        lastStageTime = Date.now();
+      };
+      if (elapsed >= MIN_STAGE_MS) {
+        doAdvance();
+      } else {
+        const t = setTimeout(doAdvance, MIN_STAGE_MS - elapsed);
+        pendingStageTimers.push(t);
+      }
+    };
+    const t0 = setTimeout(() => advanceStage(1), 5000);
+    const t1 = setTimeout(() => advanceStage(2), 10000);
+    const t2 = setTimeout(() => advanceStage(3), 15000);
+    const t3 = setTimeout(() => advanceStage(4), 20000);
+    const t4 = setTimeout(() => advanceStage(5), 25000);
+    pendingStageTimers.push(t0, t1, t2, t3, t4);
+    const clearPendingTimers = () => {
+      pendingStageTimers.forEach(clearTimeout);
+      pendingStageTimers.length = 0;
+    };
 
     // Smooth scroll the content pane to the top so loading stages are instantly visible
     setTimeout(() => {
@@ -439,7 +499,8 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
     try {
       const url = "/api/analyze";
       console.log("Request URL:", url);
-      console.log(`[Fetch Debug] Request URL: ${url}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 240000);
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -449,24 +510,14 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
           url: target,
           userId: activeUserId 
         }),
+        signal: controller.signal,
       });
-
-      clearInterval(stepInterval);
-
-      const contentType = response.headers.get("content-type") || "";
-      console.log(`[Fetch Debug] Response Status: ${response.status}`);
-      console.log(`[Fetch Debug] Response Content-Type: ${contentType}`);
-
-      const isJson = contentType.toLowerCase().includes("application/json");
-
-      if (!isJson) {
-        const text = await response.text();
-        console.error(`[Fetch Debug] Received non-JSON response. Full Response Text:\n`, text);
-        throw new Error(`Server returned non-JSON response (${response.status}). Please check browser/server console for details.`);
-      }
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errData = await response.json();
+        const text = await response.text();
+        let errData: any;
+        try { errData = JSON.parse(text); } catch { errData = { error: text }; }
         if (errData.errorType) {
           setErrorType(errData.errorType);
         } else if (response.status === 401 || response.status === 403) {
@@ -479,22 +530,69 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
         throw new Error(errData.error || "Failed to analyze repository.");
       }
 
-      const rawReport = await response.json();
-      const finalReport: AnalysisReport = {
-        ...rawReport,
-        id: `report_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        analyzedAt: new Date().toISOString(),
-      };
+      // Read SSE stream
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("Failed to read response stream.");
 
-      // Fast-forward progress steps to finished states upon response reception
-      setAnalysisStep(5);
-      
-      setActiveReport(finalReport);
-      saveToHistory(finalReport);
-      setActiveTab(SidebarTab.DASHBOARD); // Return to main dashboard tab to show results
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+          try {
+            const event = JSON.parse(trimmed.slice(6));
+
+            if (event.type === "start") {
+              // GitHub data ready, AI generation starting — advance to step 3 (respects 5s gap)
+              advanceStage(3);
+            } else if (event.type === "chunk") {
+              // AI tokens streaming in — advance to step 4 on first chunk (respects 5s gap)
+              advanceStage(4);
+            } else if (event.type === "done") {
+              // Full report received — stop all pending timers and jump to final stage
+              clearPendingTimers();
+              currentStep = 6;
+              setAnalysisStep(6);
+              const rawReport = event.report;
+              const finalReport: AnalysisReport = {
+                ...rawReport,
+                id: `report_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                analyzedAt: rawReport.analyzedAt || new Date().toISOString(),
+              };
+              setActiveReport(finalReport);
+              saveToHistory(finalReport);
+              setActiveTab(SidebarTab.DASHBOARD);
+            } else if (event.type === "error") {
+              setErrorStr(event.message || "Analysis failed.");
+              setErrorType(event.errorType || "Analysis Error");
+              throw new Error(event.message);
+            }
+          } catch (parseErr: any) {
+            if (parseErr.message && !parseErr.message.includes("JSON")) {
+              throw parseErr; // re-throw real errors, skip JSON parse errors
+            }
+          }
+        }
+      }
     } catch (err: any) {
+      clearPendingTimers();
       console.error(err);
-      setErrorStr(err.message || "An unexpected network error occurred.");
+      if (err.name === "AbortError" || err.message?.includes("aborted")) {
+        setErrorStr("The request timed out. The analysis is taking longer than expected. Please try again.");
+        setErrorType("Request Timeout");
+      } else {
+        setErrorStr(err.message || "An unexpected network error occurred.");
+      }
       if (err.message?.includes("unauthorized") || err.message?.includes("invalid key") || err.message?.includes("API key")) {
         setErrorType("Authentication Failed");
       } else if (err.message?.includes("GitHub") || err.message?.includes("github")) {
@@ -503,7 +601,7 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
         setErrorType("Repository Not Found");
       }
     } finally {
-      clearInterval(stepInterval);
+      clearPendingTimers();
       setIsAnalyzing(false);
     }
   };
@@ -523,14 +621,13 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
       {/* MOBILE HEADER BAR */}
       <header id="mobile-dashboard-header" className="md:hidden w-full bg-white border-b border-[#EDE9FE] px-4 py-3 h-14 flex items-center justify-between sticky top-0 z-40 shadow-sm">
         <div className="flex items-center gap-2 cursor-pointer" onClick={handleLogoClick}>
-          <div className="w-8 h-8 bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] rounded-lg flex items-center justify-center text-white shadow-md">
-            <Sparkles className="w-4.5 h-4.5 fill-white/10 animate-pulse" />
-          </div>
+          <img src="/logo.svg" alt="RepoSense AI" className="w-8 h-8 rounded-lg shadow-md" />
           <span className="font-extrabold text-sm tracking-tight bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] bg-clip-text text-transparent font-display">
             REPOSENSE AI
           </span>
         </div>
         <button 
+          data-tutorial="sidebar-toggle"
           onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           className="p-1.5 rounded-lg border border-purple-100 text-purple-700 focus:outline-none hover:bg-purple-50"
         >
@@ -548,33 +645,37 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
         {/* Sidebar Logo */}
         <div className="p-6 border-b border-purple-50 hidden md:flex items-center justify-between">
           <div className="flex items-center gap-2.5 cursor-pointer" onClick={handleLogoClick}>
-            <div className="w-9 h-9 bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-100">
-              <Sparkles className="w-5 h-5 fill-white/10" />
-            </div>
+            <img src="/logo.svg" alt="RepoSense AI" className="w-9 h-9 rounded-xl shadow-lg shadow-purple-100" />
             <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] bg-clip-text text-transparent font-display">
               REPOSENSE AI
             </span>
           </div>
         </div>
 
-        {/* User Workspace Profiles Info (As requested: Welcome Back, Muskan 👋 with Avatar) */}
+        {/* User Workspace Profiles Info */}
         <div className="p-5 border-b border-purple-50 bg-gradient-to-br from-purple-50/20 to-white">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <img 
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" 
-                alt="Muskan Profile"
-                referrerPolicy="no-referrer"
-                className="w-11 h-11 rounded-xl object-cover border-2 border-[#A78BFA] shadow-sm bg-purple-100"
-              />
+              {user?.avatarUrl ? (
+                <img 
+                  src={user.avatarUrl} 
+                  alt={`${user.fullName} Profile`}
+                  referrerPolicy="no-referrer"
+                  className="w-11 h-11 rounded-xl object-cover border-2 border-[#A78BFA] shadow-sm bg-purple-100"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                  {user?.fullName?.charAt(0)?.toUpperCase() || "?"}
+                </div>
+              )}
               <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />
             </div>
             <div className="min-w-0">
               <h4 className="text-sm font-bold text-slate-800 tracking-tight truncate flex items-center gap-1">
-                <span>Welcome Back, Muskan</span>
+                <span>Welcome Back, {user?.fullName || "User"}</span>
                 <span>👋</span>
               </h4>
-              <p className="text-[11px] font-mono text-slate-400 font-semibold tracking-wider uppercase mt-0.5">Muskan Workspace</p>
+              <p className="text-[11px] font-mono text-slate-400 font-semibold tracking-wider uppercase mt-0.5">{user?.fullName?.split(" ")[0] || "User"} Workspace</p>
             </div>
           </div>
         </div>
@@ -587,6 +688,7 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
             return (
               <button
                 key={item.id}
+                data-tutorial={`tab-${item.id}`}
                 onClick={() => {
                   setActiveTab(item.id);
                   setIsMobileSidebarOpen(false);
@@ -634,8 +736,11 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
               <History className="w-3 h-3 text-slate-400" />
               <span>Recent Inspections</span>
             </h5>
-            <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
-              {historyReports.slice(0, 3).map((rep) => (
+            <div 
+              className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1 scroll-smooth"
+              style={{ scrollbarWidth: "thin", scrollbarColor: "#CBD5E1 transparent" }}
+            >
+              {historyReports.map((rep) => (
                 <div 
                   key={rep.id}
                   onClick={() => {
@@ -661,6 +766,11 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                 </div>
               ))}
             </div>
+            {historyReports.length > 3 && (
+              <div className="text-center mt-1.5 pt-1.5 border-t border-slate-200/60">
+                <p className="text-[9px] text-slate-400 animate-pulse">Scroll to see more</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -766,13 +876,20 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                       </div>
                       <input 
                         type="text" 
+                        data-tutorial="url-input"
                         value={repoUrl}
                         onChange={(e) => setRepoUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && repoUrl.trim() && !isAnalyzing) {
+                            triggerAnalysis(repoUrl);
+                          }
+                        }}
                         disabled={isAnalyzing}
                         placeholder="https://github.com/vercel/next.js" 
                         className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-slate-700 pl-4 sm:pl-14 pr-4 py-3 placeholder:text-slate-300 text-sm"
                       />
                       <button 
+                        data-tutorial="analyze-btn"
                         onClick={() => triggerAnalysis(repoUrl)}
                         disabled={isAnalyzing || !repoUrl.trim()}
                         className="px-6 bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] text-white font-semibold rounded-xl shadow-lg shadow-purple-200 py-2.5 hover:scale-[1.02] transition-transform duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-sm"
@@ -893,22 +1010,21 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                             {activeReport.repo || activeReport.name}
                           </h2>
                           <p className="text-slate-500 text-sm sm:text-base leading-relaxed font-sans font-medium line-clamp-3">
-                            {activeReport.description || "Robust, collaborative open-source modular code package analyzed via RepoSense AI pipelines."}
+                            {stripMarkdown(activeReport.description) || "Robust, collaborative open-source modular code package analyzed via RepoSense AI pipelines."}
                           </p>
                         </div>
                       </div>
 
-                      {/* Technology Badges beautifully displayed (As requested!) */}
+                      {/* Technology Badges beautifully displayed */}
                       <div className="space-y-3">
                         <h5 className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Primary Tech Stack Badges</h5>
                         <div className="flex flex-wrap gap-2">
                           {[
-                            { name: activeReport.techStack?.languages?.[0] || "React", color: "bg-purple-100 text-[#7C3AED]" },
-                            { name: activeReport.techStack?.languages?.[1] || "TypeScript", color: "bg-blue-100 text-blue-700" },
-                            { name: activeReport.techStack?.frameworks?.[0] || "Next.js", color: "bg-slate-100 text-slate-800" },
-                            { name: activeReport.techStack?.databases?.[0] || "Supabase", color: "bg-emerald-100 text-emerald-800" },
-                            { name: "Gemini AI", color: "bg-amber-100 text-amber-800" },
-                            { name: activeReport.stats?.complexityScore || "Highly Modular", color: "bg-rose-100 text-rose-800" }
+                            ...(activeReport.techStack?.languages || []).map(name => ({ name, color: "bg-purple-100 text-[#7C3AED]" })),
+                            ...(activeReport.techStack?.frameworks || []).map(name => ({ name, color: "bg-blue-100 text-blue-700" })),
+                            ...(activeReport.techStack?.databases || []).map(name => ({ name, color: "bg-emerald-100 text-emerald-800" })),
+                            ...(activeReport.techStack?.tools || []).map(name => ({ name, color: "bg-amber-100 text-amber-800" })),
+                            ...(activeReport.techStack?.libraries || []).map(name => ({ name, color: "bg-slate-100 text-slate-700" }))
                           ].map((badge, bIdx) => (
                             <motion.span 
                               key={bIdx}
@@ -918,6 +1034,11 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                               {badge.name}
                             </motion.span>
                           ))}
+                          {(!activeReport.techStack?.languages?.length && !activeReport.techStack?.frameworks?.length && !activeReport.techStack?.databases?.length && !activeReport.techStack?.tools?.length && !activeReport.techStack?.libraries?.length) && (
+                            <span className="px-3 py-1 text-xs font-bold rounded-lg bg-slate-100 text-slate-500">
+                              No tech stack detected
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -926,15 +1047,15 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                         <div className="flex items-center gap-4">
                           <span className="flex items-center gap-1.5">
                             <Star className="w-4.5 h-4.5 text-amber-400 fill-amber-400" />
-                            <strong className="text-slate-700 font-extrabold">{activeReport.stars?.toLocaleString() || 124}</strong> stars
+                            <strong className="text-slate-700 font-extrabold">{activeReport.stars?.toLocaleString() ?? 0}</strong> stars
                           </span>
                           <span className="flex items-center gap-1.5">
                             <GitFork className="w-4.5 h-4.5 text-indigo-400" />
-                            <strong className="text-slate-700 font-extrabold">{activeReport.forks?.toLocaleString() || 32}</strong> forks
+                            <strong className="text-slate-700 font-extrabold">{activeReport.forks?.toLocaleString() ?? 0}</strong> forks
                           </span>
                           <span className="flex items-center gap-1.5">
                             <AlertCircle className="w-4.5 h-4.5 text-amber-500" />
-                            <strong className="text-slate-700 font-extrabold">{activeReport.openIssues || 4}</strong> issues
+                            <strong className="text-slate-700 font-extrabold">{activeReport.openIssues ?? 0}</strong> issues
                           </span>
                         </div>
                         <div className="text-[10px] font-mono text-slate-400">
@@ -1029,7 +1150,7 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
 
                   </div>
 
-                  {/* SIGNATURE FEATURE: SPECIAL ARCHITECTURE FLOW VISUALIZATION (As requested!) */}
+                  {/* ARCHITECTURE FLOW VISUALIZATION - Dynamic based on repo tech stack */}
                   <motion.div 
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1043,85 +1164,234 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                       <p className="text-xs text-slate-400 font-medium">Map representation of repository design vectors, execution streams, and AI pipelines</p>
                     </div>
 
-                    <div className="relative py-6 px-2 sm:px-4">
-                      {/* Connection Wave Lines */}
-                      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 overflow-visible hidden md:block">
-                        <svg className="w-full h-16 overflow-visible absolute -top-8 left-0 pointer-events-none">
-                          <motion.path 
-                            d="M 50,32 Q 220,5 340,32 T 620,32 T 910,32" 
-                            fill="none" 
-                            stroke="#E8E5FF" 
-                            strokeWidth="4" 
-                          />
-                          <motion.path 
-                            d="M 50,32 Q 220,5 340,32 T 620,32 T 910,32" 
-                            fill="none" 
-                            stroke="#7C3AED" 
-                            strokeWidth="3" 
-                            strokeDasharray="8 12"
-                            animate={{ strokeDashoffset: -40 }}
-                            transition={{ repeat: Infinity, ease: "linear", duration: 2.5 }}
-                          />
-                        </svg>
-                      </div>
+                    {(() => {
+                      const techNodes = [];
+                      const langs = activeReport.techStack?.languages || [];
+                      const frameworks = activeReport.techStack?.frameworks || [];
+                      const dbs = activeReport.techStack?.databases || [];
+                      const tools = activeReport.techStack?.tools || [];
+                      const libs = activeReport.techStack?.libraries || [];
 
-                      {/* Flex Horizontally connected pipeline nodes */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative z-10 text-center font-sans">
-                        
-                        {[
-                          { 
-                            title: "React Frontend", 
-                            tech: activeReport.techStack?.languages?.[0] || "TypeScript / CSS", 
-                            desc: "Componentized UI presentation layout structured through Tailwind styling scripts", 
-                            icon: Laptop, 
-                            color: "border-[#7C3AED] text-[#7C3AED] bg-purple-50/50" 
-                          },
-                          { 
-                            title: "Express Backend", 
-                            tech: "Node.js REST Client", 
-                            desc: "API gateway handling Git extractions, payload validations, and payload parsing", 
-                            icon: Terminal, 
-                            color: "border-blue-300 text-blue-700 bg-blue-50/50" 
-                          },
-                          { 
-                            title: "Supabase DB / Assets", 
-                            tech: activeReport.techStack?.databases?.[0] || "Relational Schema", 
-                            desc: "Data schemas & secure user authenticators, hosting metadata caches securely", 
-                            icon: Database, 
-                            color: "border-emerald-300 text-emerald-700 bg-emerald-50/50" 
-                          },
-                          { 
-                            title: "Generative AI Core", 
-                            tech: "Gemini 3.5 Engine", 
-                            desc: "AI analysis formulation synthesizing system trees, strengths, and blueprints", 
-                            icon: Sparkles, 
-                            color: "border-amber-300 text-amber-700 bg-amber-50/50" 
-                          }
-                        ].map((node, nodeIdx) => {
-                          const IconComp = node.icon;
-                          return (
-                            <motion.div 
-                              key={nodeIdx}
-                              whileHover={{ y: -4, scale: 1.01 }}
-                              className="bg-white rounded-2xl border border-slate-150 p-5 shadow-sm hover:shadow-md transition-all relative group flex flex-col items-center space-y-3.5"
-                            >
-                              <div className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-transform group-hover:scale-110 ${node.color}`}>
-                                <IconComp className="w-6 h-6" />
-                              </div>
-                              <div className="space-y-1">
-                                <h4 className="font-display font-extrabold text-sm text-slate-800">{node.title}</h4>
-                                <span className="px-2 py-0.5 bg-slate-50 border border-slate-100 text-[9px] font-mono text-slate-450 rounded font-semibold">{node.tech}</span>
-                              </div>
-                              <p className="text-[11px] text-slate-450 leading-relaxed max-w-xs">{node.desc}</p>
-                              
-                              {/* Arrow indicators below nodes on small/mobile screens */}
-                              <div className="md:hidden pt-2 text-[#7C3AED] font-bold">↓</div>
-                            </motion.div>
-                          );
-                        })}
+                      const langDescriptions: Record<string, string> = {
+                        "TypeScript": "Strongly-typed JavaScript superset for scalable applications",
+                        "JavaScript": "Dynamic scripting language for web and server logic",
+                        "Python": "Versatile language for data science, AI, and backend services",
+                        "Java": "Enterprise-grade object-oriented language for robust systems",
+                        "Go": "High-performance compiled language for concurrent microservices",
+                        "Rust": "Memory-safe systems language for performance-critical applications",
+                        "C": "Low-level systems language for performance-critical and embedded software",
+                        "C++": "Low-level language for system software and game engines",
+                        "C#": "Microsoft language for .NET applications and game development",
+                        "Cython": "Python-compiled extension language for optimized C-level performance",
+                        "HTML": "Markup language for structuring content on the web",
+                        "CSS": "Styling language for visual presentation of web documents",
+                        "SCSS": "Sass superset with variables, nesting, and modular CSS patterns",
+                        "Sass": "CSS preprocessor with variables, mixins, and modular syntax",
+                        "Ruby": "Dynamic language optimized for web application frameworks",
+                        "PHP": "Server-side scripting language for web development",
+                        "Swift": "Modern language for iOS and macOS application development",
+                        "Kotlin": "Modern JVM language for Android and server-side development",
+                        "Dart": "Client-optimized language for cross-platform Flutter apps",
+                        "Scala": "Functional JVM language for big data and distributed systems",
+                        "R": "Statistical computing language for data analysis and visualization",
+                        "Lua": "Lightweight scripting language for game modding and embedding",
+                        "Elixir": "Functional language for scalable fault-tolerant applications",
+                        "Clojure": "Functional Lisp dialect for concurrent systems",
+                        "Haskell": "Purely functional language for mathematical computations",
+                        "Julia": "High-performance language for numerical and scientific computing",
+                        "Shell": "Command-line scripting language for OS automation and DevOps",
+                        "Bash": "Unix shell scripting language for system administration tasks",
+                        "PowerShell": "Windows automation language for system administration",
+                        "Perl": "Text-processing language for system admin and bioinformatics",
+                        "MATLAB": "Numerical computing environment for engineering and science",
+                        "Objective-C": "Legacy Apple language for iOS and macOS applications",
+                        "Assembly": "Low-level language closest to machine hardware instructions",
+                        "Groovy": "JVM language for Java-compatible scripting and build pipelines",
+                        "Fortran": "High-performance language for scientific and numeric computing",
+                        "COBOL": "Enterprise language for legacy banking and government systems",
+                        "Zig": "Systems language designed for simplicity and C-level performance",
+                        "Nim": "Compiled language with Python-like syntax for systems programming",
+                        "Solidity": "Language for writing smart contracts on Ethereum blockchains",
+                        "Gleam": "Type-safe functional language for the Erlang virtual machine",
+                        "Erlang": "Functional language for fault-tolerant distributed systems",
+                        "F#": "Functional-first language for .NET and data engineering",
+                        "OCaml": "Multi-paradigm language for safety-critical applications"
+                      };
 
-                      </div>
-                    </div>
+                      const fwDescriptions = {
+                        "React": "Component-based UI library for building interactive interfaces",
+                        "Next.js": "Full-stack React framework with server-side rendering",
+                        "Vue": "Progressive framework for building user interfaces",
+                        "Angular": "Platform for building mobile and desktop web applications",
+                        "Svelte": "Compile-time framework with minimal runtime overhead",
+                        "Django": "High-level Python framework for rapid web development",
+                        "Flask": "Lightweight Python micro-framework for web services",
+                        "FastAPI": "Modern Python framework for building REST APIs",
+                        "Express": "Minimal Node.js framework for web application backends",
+                        "NestJS": "Progressive Node.js framework for enterprise applications",
+                        "Spring Boot": "Java framework for production-ready microservices",
+                        "Rails": "Full-stack Ruby framework for database-backed applications",
+                        "Laravel": "Elegant PHP framework for web application development",
+                        "Flutter": "Cross-platform framework for native mobile applications",
+                        "React Native": "Framework for building cross-platform mobile apps",
+                        "Tailwind CSS": "Utility-first CSS framework for rapid UI development",
+                        "Bootstrap": "Popular CSS framework for responsive web design",
+                        "TensorFlow": "End-to-end machine learning platform",
+                        "PyTorch": "Deep learning framework for research and production"
+                      };
+
+                      const dbDescriptions = {
+                        "PostgreSQL": "Advanced open-source relational database system",
+                        "MySQL": "Popular open-source relational database management",
+                        "MongoDB": "Document-oriented NoSQL database for flexible schemas",
+                        "Redis": "In-memory data store for caching and real-time apps",
+                        "Supabase": "Open-source Firebase alternative with PostgreSQL",
+                        "Firebase": "Google platform for mobile and web app backends",
+                        "Elasticsearch": "Distributed search and analytics engine",
+                        "SQLite": "Lightweight embedded relational database",
+                        "DynamoDB": "Fully managed NoSQL database service by AWS",
+                        "Cassandra": "Distributed database for high-availability workloads"
+                      };
+
+                      const toolDescriptions = {
+                        "Docker": "Container platform for consistent deployment environments",
+                        "Kubernetes": "Container orchestration for scalable deployments",
+                        "Webpack": "Module bundler for JavaScript applications",
+                        "Vite": "Next-generation frontend build tool",
+                        "Babel": "JavaScript compiler for modern syntax transpilation",
+                        "ESLint": "Code linting tool for identifying code patterns",
+                        "Git": "Distributed version control system for code tracking",
+                        "CI/CD": "Automated pipeline for continuous integration and deployment",
+                        "GitHub Actions": "Workflow automation for CI/CD pipelines",
+                        "Terraform": "Infrastructure as code for cloud provisioning"
+                      };
+
+                      const libDescriptions = {
+                        "Axios": "Promise-based HTTP client for API requests",
+                        "Lodash": "Utility library for common JavaScript operations",
+                        "Mongoose": "MongoDB object modeling for Node.js applications",
+                        "Prisma": "Next-generation ORM for database access",
+                        "NumPy": "Fundamental package for numerical computing in Python",
+                        "Pandas": "Data manipulation and analysis library for Python",
+                        "Matplotlib": "Visualization library for creating plots and charts",
+                        "Scikit-learn": "Machine learning library for Python applications",
+                        "TensorFlow.js": "Machine learning library for JavaScript environments",
+                        "OpenCV": "Computer vision library for image processing"
+                      };
+
+                      const defaultDesc = "Core technology powering this repository's architecture";
+
+                      langs.forEach((lang, i) => {
+                        techNodes.push({
+                          title: lang,
+                          tech: "Language",
+                          desc: langDescriptions[lang] || defaultDesc,
+                          icon: Code2,
+                          color: "border-[#7C3AED] text-[#7C3AED] bg-purple-50/50"
+                        });
+                      });
+
+                      frameworks.forEach((fw, i) => {
+                        techNodes.push({
+                          title: fw,
+                          tech: "Framework",
+                          desc: fwDescriptions[fw] || defaultDesc,
+                          icon: Layers,
+                          color: "border-blue-300 text-blue-700 bg-blue-50/50"
+                        });
+                      });
+
+                      dbs.forEach((db, i) => {
+                        techNodes.push({
+                          title: db,
+                          tech: "Database",
+                          desc: dbDescriptions[db] || defaultDesc,
+                          icon: Database,
+                          color: "border-emerald-300 text-emerald-700 bg-emerald-50/50"
+                        });
+                      });
+
+                      tools.forEach((tool, i) => {
+                        techNodes.push({
+                          title: tool,
+                          tech: "Tool",
+                          desc: toolDescriptions[tool] || defaultDesc,
+                          icon: Terminal,
+                          color: "border-amber-300 text-amber-700 bg-amber-50/50"
+                        });
+                      });
+
+                      libs.forEach((lib, i) => {
+                        techNodes.push({
+                          title: lib,
+                          tech: "Library",
+                          desc: libDescriptions[lib] || defaultDesc,
+                          icon: BookOpen,
+                          color: "border-rose-300 text-rose-700 bg-rose-50/50"
+                        });
+                      });
+
+                      const displayNodes = techNodes.slice(0, 4);
+                      const gridCols = displayNodes.length <= 2 ? "md:grid-cols-2" : displayNodes.length === 3 ? "md:grid-cols-3" : "md:grid-cols-4";
+
+                      if (displayNodes.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-slate-400">
+                            <Compass className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No architecture data detected for this repository.</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="relative py-6 px-2 sm:px-4">
+                          {displayNodes.length > 1 && (
+                            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 overflow-visible hidden md:block">
+                              <svg className="w-full h-16 overflow-visible absolute -top-8 left-0 pointer-events-none">
+                                <motion.path 
+                                  d="M 50,32 Q 220,5 340,32 T 620,32 T 910,32" 
+                                  fill="none" 
+                                  stroke="#E8E5FF" 
+                                  strokeWidth="4" 
+                                />
+                                <motion.path 
+                                  d="M 50,32 Q 220,5 340,32 T 620,32 T 910,32" 
+                                  fill="none" 
+                                  stroke="#7C3AED" 
+                                  strokeWidth="3" 
+                                  strokeDasharray="8 12"
+                                  animate={{ strokeDashoffset: -40 }}
+                                  transition={{ repeat: Infinity, ease: "linear", duration: 2.5 }}
+                                />
+                              </svg>
+                            </div>
+                          )}
+
+                          <div className={`grid grid-cols-1 ${gridCols} gap-6 relative z-10 text-center font-sans`}>
+                            {displayNodes.map((node, nodeIdx) => {
+                              const IconComp = node.icon;
+                              return (
+                                <motion.div 
+                                  key={nodeIdx}
+                                  whileHover={{ y: -4, scale: 1.01 }}
+                                  className="bg-white rounded-2xl border border-slate-150 p-5 shadow-sm hover:shadow-md transition-all relative group flex flex-col items-center space-y-3.5"
+                                >
+                                  <div className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-transform group-hover:scale-110 ${node.color}`}>
+                                    <IconComp className="w-6 h-6" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <h4 className="font-display font-extrabold text-sm text-slate-800">{node.title}</h4>
+                                    <span className="px-2 py-0.5 bg-slate-50 border border-slate-100 text-[9px] font-mono text-slate-450 rounded font-semibold">{node.tech}</span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-450 leading-relaxed max-w-xs">{node.desc}</p>
+                                  <div className="md:hidden pt-2 text-[#7C3AED] font-bold">↓</div>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </motion.div>
 
                   {/* NAV TABS FOR REPORT MODULES */}
@@ -1178,9 +1448,9 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                                   <BookOpen className="w-5 h-5" />
                                 </div>
                                 <h4 className="font-display font-[800] text-slate-950 text-base">Project Overview</h4>
-                                <p className="text-slate-700 leading-relaxed text-sm sm:text-[15px] font-sans whitespace-pre-line">
-                                  {activeReport.summary?.projectOverview || "Overview blueprint details are being structured."}
-                                </p>
+                                <div className="text-slate-700 leading-relaxed text-sm sm:text-[15px] font-sans whitespace-pre-line">
+                                  {stripMarkdown(activeReport.summary?.projectOverview || "Overview blueprint details are being structured.")}
+                                </div>
                               </div>
                             </motion.div>
 
@@ -1194,9 +1464,9 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                                   <ShieldCheck className="w-5 h-5" />
                                 </div>
                                 <h4 className="font-display font-[800] text-slate-950 text-base">The Solution & Purpose</h4>
-                                <p className="text-slate-700 leading-relaxed text-sm sm:text-[15px] font-sans whitespace-pre-line">
-                                  {activeReport.summary?.purpose || "Purpose variables are being categorized."}
-                                </p>
+                                <div className="text-slate-700 leading-relaxed text-sm sm:text-[15px] font-sans whitespace-pre-line">
+                                  {stripMarkdown(activeReport.summary?.purpose || "Purpose variables are being categorized.")}
+                                </div>
                               </div>
                             </motion.div>
 
@@ -1214,7 +1484,7 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                                   {activeReport.summary?.mainFunctionality?.map((func, i) => (
                                     <li key={i} className="flex items-start gap-2.5">
                                       <span className="w-1.5 h-1.5 bg-[#7C3AED] rounded-full mt-2 shrink-0" />
-                                      <span>{func}</span>
+                                      <span>{stripMarkdown(func)}</span>
                                     </li>
                                   )) || <p className="text-slate-400 font-sans">No primary capabilities reported.</p>}
                                 </ul>
@@ -1387,9 +1657,9 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                                 </div>
                                 <h5 className="font-display font-bold text-slate-800 text-sm">Directory Boundaries & Logic</h5>
                               </div>
-                              <p className="text-sm sm:text-[15px] text-slate-705 leading-relaxed font-sans whitespace-pre-line bg-white p-5 rounded-xl border border-slate-100 shadow-sm shadow-purple-50/10 leading-loose">
-                                {activeReport.projectStructure?.explanation || "No structure review metadata."}
-                              </p>
+                              <div className="text-sm sm:text-[15px] text-slate-705 leading-relaxed font-sans bg-white p-5 rounded-xl border border-slate-100 shadow-sm shadow-purple-50/10 leading-loose whitespace-pre-line">
+                                {stripMarkdown(activeReport.projectStructure?.explanation || "No structure review metadata.")}
+                              </div>
                             </div>
                           </div>
                         </motion.div>
@@ -1500,7 +1770,7 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                         >
                           <div>
                             <h4 className="font-display font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                              <Sparkles className="w-5 h-5 text-[#7C3AED]" />
+                              <Brain className="w-5 h-5 text-[#7C3AED]" />
                               <span>AI Architectural Evaluation & Recommendations</span>
                             </h4>
                             <p className="text-xs text-slate-450 mt-0.5">Intelligent code diagnostics, critical improvements, and modular strengths</p>
@@ -1519,7 +1789,7 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                                   {activeReport.aiInsights?.strengths?.map((str, i) => (
                                     <li key={i} className="flex items-start gap-2 bg-white p-2 rounded-lg border border-emerald-100/40 shadow-sm">
                                       <span className="text-emerald-500 font-bold shrink-0">✓</span>
-                                      <span>{str}</span>
+                                      <span>{stripMarkdown(str)}</span>
                                     </li>
                                   )) || <p className="text-slate-400 font-sans">None found.</p>}
                                 </ul>
@@ -1545,7 +1815,7 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                                           {choice.name}
                                         </div>
                                         <div className="flex items-start gap-1.5 mt-1 text-slate-600 font-medium">
-                                          <span>{sug}</span>
+                                          <span>{stripMarkdown(sug)}</span>
                                         </div>
                                       </li>
                                     );
@@ -1555,14 +1825,14 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                             </div>
 
                             {/* Architecture mapping explanation (Right 7 cols) */}
-                            <div className="lg:col-span-7 bg-[#FAF9FF] rounded-2xl p-6 border border-purple-50 flex flex-col justify-center space-y-3">
+                            <div className="lg:col-span-7 bg-[#FAF9FF] rounded-2xl p-6 border border-purple-50 flex flex-col space-y-3">
                               <h5 className="font-display font-extrabold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
                                 <Layers className="w-4 h-4 text-purple-600" />
                                 <span>Logic Stream Flow Explanation</span>
                               </h5>
-                              <p className="text-sm sm:text-[15px] text-slate-705 leading-relaxed font-sans whitespace-pre-line bg-white p-6 rounded-2xl border border-slate-100 shadow-sm shadow-purple-50/10 leading-loose">
-                                {activeReport.aiInsights?.architectureExplanation || "Codebase logic streams have been reviewed under compliance frameworks."}
-                              </p>
+                              <div className="text-sm text-slate-705 font-sans bg-white p-5 rounded-2xl border border-slate-100 shadow-sm shadow-purple-50/10 overflow-y-auto max-h-[320px] leading-relaxed">
+                                {stripMarkdown(activeReport.aiInsights?.architectureExplanation || "Codebase logic streams have been reviewed under compliance frameworks.")}
+                              </div>
                             </div>
 
                           </div>
@@ -1736,7 +2006,7 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                               setActiveReport(rep);
                               setActiveTab(SidebarTab.DASHBOARD);
                             }}
-                            className="font-display font-bold text-sm text-slate-800 hover:text-brand-600 hover:underline cursor-pointer truncate"
+                            className="font-display font-bold text-[13px] text-slate-800 hover:text-brand-600 hover:underline cursor-pointer truncate"
                           >
                             {rep.owner}/{rep.repo}
                           </h4>
@@ -1747,12 +2017,12 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-                        <p className="text-[11px] text-slate-450 line-clamp-2 leading-relaxed">
+                        <p className="text-xs text-slate-450 line-clamp-2 leading-relaxed">
                           {rep.description || "No repository description stored."}
                         </p>
                       </div>
 
-                      <div className="border-t border-slate-100 mt-4 pt-3 flex items-center justify-between text-[10px] text-slate-400">
+                      <div className="border-t border-slate-100 mt-4 pt-3 flex items-center justify-between text-[11px] text-slate-400">
                         <span>{new Date(rep.analyzedAt).toLocaleDateString()}</span>
                         <div className="flex gap-2">
                           <span className="flex items-center gap-1"><Star className="w-3 h-3 text-amber-400 fill-amber-400" /> {rep.stars}</span>
@@ -1883,11 +2153,11 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                     <Sparkles className="w-4 h-4 text-brand-600" /> Active AI Model Engine
                   </h3>
                   <p className="text-xs text-slate-500">
-                    RepoSense analyzes repository documentation, content snippets, and folder trees using Google's <span className="font-bold text-brand-600">Gemini 3.5 Flash</span> text generation model.
+                    RepoSense analyzes repository documentation, content snippets, and folder trees using <span className="font-bold text-brand-600">LLM</span> text generation model.
                   </p>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-150 font-mono text-xs flex justify-between">
                     <span>Model ID:</span>
-                    <span className="text-slate-800 font-bold">gemini-3.5-flash</span>
+                    <span className="text-slate-800 font-bold">NVIDIA LLM API</span>
                   </div>
                 </div>
 
@@ -1941,11 +2211,11 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
                   },
                   {
                     q: "What causes the 'GitHub API request failed' message?",
-                    a: "GitHub's public REST APIs regulate requests to prevent spam. If you try to analyze multiple repositories in a short timeframe, GitHub may temporarily rate limit our server's IP address. In this scenario, Gemini switches to a hyper-realistic projection based on repo naming conventions to synthesize findings flawlessly."
+                    a: "GitHub's public REST APIs regulate requests to prevent spam. If you try to analyze multiple repositories in a short timeframe, GitHub may temporarily rate limit our server's IP address. In this scenario, the system falls back to an intelligent projection based on repo naming conventions to synthesize findings flawlessly."
                   },
                   {
                     q: "Are the file tree lists drawn in realtime?",
-                    a: "Yes! RepoSense reads the root contents structure map directly from the GitHub API and hands the mapping to Gemini to draft complete interactive ASCII diagrams."
+                    a: "Yes! RepoSense reads the root contents structure map directly from the GitHub API and hands the mapping to the LLM to draft complete interactive ASCII diagrams."
                   }
                 ].map((faq, index) => (
                   <div key={index} className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm space-y-2">
@@ -1965,6 +2235,13 @@ export default function Dashboard({ initialUrl, onLogout }: DashboardProps) {
         </AnimatePresence>
       </main>
 
+      {/* Onboarding tooltip tour for first-time users */}
+      {showOnboarding && user?.id && (
+        <OnboardingTooltip
+          userId={user.id}
+          onComplete={() => setShowOnboarding(false)}
+        />
+      )}
     </div>
   );
 }
