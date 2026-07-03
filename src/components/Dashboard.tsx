@@ -46,11 +46,13 @@ import {
   TrendingUp,
   Award,
   BookMarked,
-  Brain
+  Brain,
+  MessageCircle
 } from "lucide-react";
 import { AnalysisReport } from "../types";
 import { supabase } from "../lib/supabase";
 import OnboardingTooltip from "./OnboardingTooltip";
+import CopilotChat from "./CopilotChat";
 
 function stripMarkdown(text: string): string {
   return text
@@ -76,6 +78,7 @@ enum SidebarTab {
   HISTORY = "history",
   INSIGHTS = "insights",
   FAVORITES = "favorites",
+  COPILOT = "copilot",
   SETTINGS = "settings",
   HELP = "help"
 }
@@ -611,6 +614,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
     { id: SidebarTab.HISTORY, label: "Previous Analyses", icon: History, count: historyReports.length },
     { id: SidebarTab.INSIGHTS, label: "Repository Insights", icon: FolderSearch },
     { id: SidebarTab.FAVORITES, label: "Favorites", icon: Star, count: favorites.length },
+    { id: SidebarTab.COPILOT, label: "Copilot", icon: MessageCircle },
     { id: SidebarTab.SETTINGS, label: "Settings", icon: Settings },
     { id: SidebarTab.HELP, label: "Help Center", icon: CircleHelp },
   ];
@@ -2229,6 +2233,19 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                 ))}
               </div>
 
+            </motion.div>
+          )}
+
+          {/* TAB 6: COPILOT */}
+          {activeTab === SidebarTab.COPILOT && (
+            <motion.div
+              key="tab-copilot"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="h-full"
+            >
+              <CopilotChat report={activeReport} userId={user?.id || ""} />
             </motion.div>
           )}
 

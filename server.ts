@@ -51,7 +51,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
 // In-memory cache for AI API results (1-hour TTL)
 const analysisCache = new Map<string, { result: any; timestamp: number }>();
@@ -1109,6 +1109,234 @@ Return only the JSON.
       return res.end();
     }
     sendSSE(res, { type: "error", message: err.message || "Failed to generate report from repository.", errorType: "Analysis Error" });
+    return res.end();
+  }
+});
+
+
+// Copilot chat endpoint (SSE streaming)
+app.post("/api/copilot", async (req, res) => {
+  console.log("[API] Copilot route hit");
+  try {
+  const { message, history, report } = req.body;
+
+  if (!message || !report) {
+    return res.status(400).json({ error: "Message and report context are required." });
+  }
+
+  if (!process.env.NVIDIA_API_KEY) {
+    return res.status(500).json({ error: "NVIDIA API key not configured." });
+  }
+
+  // Set SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  sendSSE(res, { type: "start" });
+
+  // Build the system prompt with full report context
+  const reportContext = `
+REPOSITORY ANALYSIS CONTEXT:
+============================
+Name: ${report.name || report.repo}
+Owner: ${report.owner}
+Repository: ${report.owner}/${report.repo}
+URL: ${report.url}
+Description: ${report.description || "N/A"}
+Stars: ${report.stars ?? 0} | Forks: ${report.forks ?? 0} | Open Issues: ${report.openIssues ?? 0}
+Repository Type: ${report.repoType || "Unknown"}
+Analyzed At: ${report.analyzedAt || "Unknown"}
+
+SUMMARY:
+- Project Overview: ${report.summary?.projectOverview || "N/A"}
+- Purpose: ${report.summary?.purpose || "N/A"}
+- Main Functionality: ${(report.summary?.mainFunctionality || []).join(", ") || "N/A"}
+
+TECH STACK:
+- Languages: ${(report.techStack?.languages || []).join(", ") || "None detected"}
+- Frameworks: ${(report.techStack?.frameworks || []).join(", ") || "None detected"}
+- Libraries: ${(report.techStack?.libraries || []).join(", ") || "None detected"}
+- Databases: ${(report.techStack?.databases || []).join(", ") || "None detected"}
+- Tools: ${(report.techStack?.tools || []).join(", ") || "None detected"}
+
+PROJECT STRUCTURE:
+${report.projectStructure?.tree || "Not available"}
+- Explanation: ${report.projectStructure?.explanation || "N/A"}
+
+INSTALLATION:
+- Prerequisites: ${(report.installation?.prerequisites || []).join(", ") || "N/A"}
+- Steps: ${(report.installation?.steps || []).map((s: any) => `${s.title}: ${s.command || s.description}`).join("; ") || "N/A"}
+
+AI INSIGHTS:
+- Strengths: ${(report.aiInsights?.strengths || []).join("; ") || "None identified"}
+- Suggestions: ${(report.aiInsights?.suggestions || []).join("; ") || "None provided"}
+- Architecture: ${report.aiInsights?.architectureExplanation || "N/A"}
+
+HEALTH METRICS (0-100):
+- Documentation: ${report.healthMetrics?.documentation ?? "N/A"}
+- Architecture: ${report.healthMetrics?.architecture ?? "N/A"}
+- Code Quality: ${report.healthMetrics?.codeQuality ?? "N/A"}
+- Maintainability: ${report.healthMetrics?.maintainability ?? "N/A"}
+- Scalability: ${report.healthMetrics?.scalability ?? "N/A"}
+- Overall Health Score: ${report.healthScore ?? "N/A"}
+
+STATS:
+- Files Analyzed: ${report.stats?.filesAnalyzed ?? "N/A"}
+- Technologies Count: ${report.stats?.technologiesCount ?? "N/A"}
+- Estimated Size: ${report.stats?.estimatedSizeKb ?? "N/A"} KB
+- Complexity Score: ${report.stats?.complexityScore || "N/A"}
+`;
+
+  const systemMessage = {
+    role: "system",
+    content: `You are RepoSense Copilot, a knowledgeable AI assistant specialized in analyzing and explaining software repositories. You have full context about the repository the user is asking about.
+
+RULES:
+1. Answer ONLY based on the repository context provided above.
+2. Be concise and direct — no fluff, no unnecessary greetings.
+3. If a question is about something not covered in the context, say so clearly.
+4. Use plain text formatting. Do not use markdown headers. You may use bold for emphasis if needed.
+5. Keep answers focused and helpful for a developer trying to understand this codebase.
+
+${reportContext}`
+  };
+
+  // Build message array with history
+  const messages = [systemMessage];
+  if (Array.isArray(history)) {
+    for (const msg of history) {
+      if (msg.role === "user" || msg.role === "assistant") {
+        messages.push({ role: msg.role, content: msg.content });
+      }
+    }
+  }
+  messages.push({ role: "user", content: message });
+
+  const nvidiaApiKey = process.env.NVIDIA_API_KEY;
+  const requestUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
+  const modelName = "mistralai/mistral-medium-3.5-128b";
+  const MAX_RETRIES = 1;
+  const BASE_DELAY_MS = 1000;
+
+  let response: Response | null = null;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      if (attempt > 0) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        console.log(`[Copilot AI Retry] Attempt ${attempt + 1}/${MAX_RETRIES + 1} after ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
+      console.log(`[Copilot] Calling LLM model: ${modelName}`);
+      response = await fetch(requestUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${nvidiaApiKey}`
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages,
+          temperature: 0.4,
+          max_tokens: 1024,
+          top_p: 0.9,
+          stream: true
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.status === 429 && attempt < MAX_RETRIES) {
+        console.warn("[Copilot AI] Rate limited (429), retrying...");
+        continue;
+      }
+
+      break;
+    } catch (fetchErr: any) {
+      clearTimeout(timeoutId);
+      if ((fetchErr.name === "AbortError" || fetchErr.message?.includes("aborted")) && attempt < MAX_RETRIES) {
+        console.warn("[Copilot AI] Request timed out, retrying...");
+        continue;
+      } else if (attempt < MAX_RETRIES) {
+        console.warn("[Copilot AI] Network error, retrying:", fetchErr.message);
+        continue;
+      } else {
+        console.warn("[Copilot AI] Failed:", fetchErr.message);
+      }
+      break;
+    }
+  }
+
+  if (!response || !response.ok) {
+    const status = response?.status || 0;
+    console.error(`[Copilot AI Error] Status: ${status}`);
+
+    if (status === 429) {
+      sendSSE(res, { type: "error", message: "Too many requests. Please wait a moment." });
+    } else {
+      sendSSE(res, { type: "error", message: `AI error: status ${status}` });
+    }
+    return res.end();
+  }
+
+  console.log(`[Copilot] AI streaming response received (model: ${modelName})`);
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    sendSSE(res, { type: "error", message: "Failed to read AI response." });
+    return res.end();
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+        const payload = trimmed.slice(6);
+        if (payload === "[DONE]") continue;
+
+        try {
+          const parsed = JSON.parse(payload);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) {
+            sendSSE(res, { type: "chunk", content: delta });
+          }
+        } catch {
+          // skip malformed SSE chunks
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  console.log("[Copilot] Streaming complete");
+  sendSSE(res, { type: "done" });
+  return res.end();
+  } catch (err: any) {
+    console.error("[Copilot] Endpoint error:", err);
+    if (!res.headersSent) {
+      return res.status(500).json({ error: err.message || "Internal server error" });
+    }
+    try { sendSSE(res, { type: "error", message: err.message || "Server error" }); } catch {}
     return res.end();
   }
 });
