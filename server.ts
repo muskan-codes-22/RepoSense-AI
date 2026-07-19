@@ -806,7 +806,7 @@ Return only the JSON.
 
     const nvidiaApiKey = process.env.NVIDIA_API_KEY;
     const requestUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-    const modelName = "mistralai/mistral-medium-3.5-128b";
+    const modelName = "mistralai/mistral-small-4-119b-2603";
     const MAX_RETRIES = 1;
     const BASE_DELAY_MS = 1000;
 
@@ -1217,7 +1217,7 @@ ${reportContext}`
 
   const nvidiaApiKey = process.env.NVIDIA_API_KEY;
   const requestUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-  const modelName = "mistralai/mistral-medium-3.5-128b";
+  const modelName = "mistralai/mistral-small-4-119b-2603";
   const MAX_RETRIES = 1;
   const BASE_DELAY_MS = 1000;
 

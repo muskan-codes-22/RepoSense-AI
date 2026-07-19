@@ -206,7 +206,7 @@ export default function App() {
             <div className="absolute bottom-[20%] right-[-10%] w-[300px] h-[300px] rounded-full bg-purple-600/10 blur-[80px] pointer-events-none" />
 
             <div className="relative flex flex-col items-center space-y-6 max-w-sm px-6 text-center select-none z-10">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center text-white shadow-2xl shadow-purple-500/20 animate-bounce">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6D28D9] to-[#8B5CF6] flex items-center justify-center text-white shadow-2xl shadow-purple-500/20 animate-bounce">
                 <Sparkles className="w-8 h-8 fill-white/10" />
               </div>
               
@@ -220,7 +220,7 @@ export default function App() {
               {/* Progress bar animated beautifully */}
               <div className="w-48 h-1 bg-slate-800 rounded-full overflow-hidden relative">
                 <motion.div 
-                  className="absolute left-0 top-0 h-full bg-gradient-to-r from-[#7C3AED] via-[#8B5CF6] to-[#A78BFA]"
+                  className="absolute left-0 top-0 h-full bg-gradient-to-r from-[#6D28D9] via-[#7C3AED] to-[#8B5CF6]"
                   initial={{ width: "0%" }}
                   animate={{ width: "100%" }}
                   transition={{ duration: 1.8, ease: "easeInOut" }}

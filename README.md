@@ -20,7 +20,7 @@ RepoSense AI is a web application that leverages AI to analyze GitHub repositori
 
 - **Frontend**: React with TypeScript
 - **Styling**: Tailwind CSS
-- **AI Integration**: Google Gemini API
+- **AI Integration**: AI API
 - **Build Tool**: Vite
 
 ## Getting Started
@@ -29,7 +29,7 @@ RepoSense AI is a web application that leverages AI to analyze GitHub repositori
 
 - **Node.js** (v18 or higher)
 - **npm** or **yarn**
-- **Google Gemini API Key** - Get one from [Google AI Studio](https://aistudio.google.com/app/apikey)
+- **API Key** - Get one from your AI provider
 
 ### Installation
 
@@ -92,7 +92,7 @@ reposense-ai/
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `GEMINI_API_KEY` | Your Google Gemini API key | Yes |
+| `GEMINI_API_KEY` | Your AI API key | Yes |
 
 ## Contributing
 
@@ -109,5 +109,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Built with React and TypeScript
-- Powered by Google Gemini AI
+- Powered by AI
 - Styled with Tailwind CSS

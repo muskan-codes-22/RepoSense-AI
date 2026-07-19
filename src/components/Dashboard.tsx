@@ -46,8 +46,7 @@ import {
   TrendingUp,
   Award,
   BookMarked,
-  Brain,
-  MessageCircle
+  Brain
 } from "lucide-react";
 import { AnalysisReport } from "../types";
 import { supabase } from "../lib/supabase";
@@ -142,6 +141,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
   const [activeReport, setActiveReport] = useState<AnalysisReport | null>(null);
   const [historyReports, setHistoryReports] = useState<AnalysisReport[]>([]);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<AnalysisTab>(AnalysisTab.SUMMARY);
   const [showOnboarding, setShowOnboarding] = useState(() => {
     // Only show for real (non-demo) users on their first visit
@@ -614,7 +614,6 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
     { id: SidebarTab.HISTORY, label: "Previous Analyses", icon: History, count: historyReports.length },
     { id: SidebarTab.INSIGHTS, label: "Repository Insights", icon: FolderSearch },
     { id: SidebarTab.FAVORITES, label: "Favorites", icon: Star, count: favorites.length },
-    { id: SidebarTab.COPILOT, label: "Copilot", icon: MessageCircle },
     { id: SidebarTab.SETTINGS, label: "Settings", icon: Settings },
     { id: SidebarTab.HELP, label: "Help Center", icon: CircleHelp },
   ];
@@ -642,7 +641,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
       {/* LEFT SIDEBAR (Premium SaaS Sidebar) */}
       <aside 
         id="dashboard-sidebar"
-        className={`w-full md:w-80 bg-white border-r border-[#EDE9FE] md:flex flex-col shrink-0 overflow-y-auto h-[calc(100vh-3.5rem)] md:h-screen fixed md:sticky top-14 md:top-0 z-30 transition-all duration-300 md:translate-x-0 shadow-sm ${
+        className={`w-full md:w-80 bg-white border-r border-[#EDE9FE] shrink-0 h-[calc(100vh-3.5rem)] md:h-screen overflow-y-auto fixed md:sticky top-14 md:top-0 z-30 transition-all duration-300 md:translate-x-0 shadow-sm ${
           isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -675,9 +674,8 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
               <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />
             </div>
             <div className="min-w-0">
-              <h4 className="text-sm font-bold text-slate-800 tracking-tight truncate flex items-center gap-1">
-                <span>Welcome Back, {user?.fullName || "User"}</span>
-                <span>👋</span>
+              <h4 className="text-sm font-bold text-slate-800 tracking-tight truncate">
+                Welcome Back, {user?.fullName || "User"}
               </h4>
               <p className="text-[11px] font-mono text-slate-400 font-semibold tracking-wider uppercase mt-0.5">{user?.fullName?.split(" ")[0] || "User"} Workspace</p>
             </div>
@@ -685,7 +683,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
         </div>
 
         {/* Navigation Items */}
-        <nav className="p-4 flex-1 space-y-1">
+        <nav className="p-4 space-y-1 shrink-0">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -741,40 +739,46 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
               <span>Recent Inspections</span>
             </h5>
             <div 
-              className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1 scroll-smooth"
+              className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1 scroll-smooth"
               style={{ scrollbarWidth: "thin", scrollbarColor: "#CBD5E1 transparent" }}
             >
-              {historyReports.map((rep) => (
-                <div 
-                  key={rep.id}
-                  onClick={() => {
-                    setActiveReport(rep);
-                    setActiveTab(SidebarTab.DASHBOARD);
-                    setIsMobileSidebarOpen(false);
-                  }}
-                  className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-purple-100 cursor-pointer transition-all duration-250 truncate"
-                >
-                  <img 
-                    src={`https://github.com/${rep.owner}.png`} 
-                    alt={rep.owner}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "https://github.com/github.png";
+              {(() => {
+                const uniqueOwners = historyReports.reduce<{ owner: string; count: number; rep: typeof historyReports[0] }[]>((acc, rep) => {
+                  const existing = acc.find(a => a.owner === rep.owner);
+                  if (existing) {
+                    existing.count++;
+                  } else {
+                    acc.push({ owner: rep.owner, count: 1, rep });
+                  }
+                  return acc;
+                }, []);
+                return uniqueOwners.map(({ owner, count, rep }) => (
+                  <div 
+                    key={rep.id}
+                    onClick={() => {
+                      setActiveReport(rep);
+                      setActiveTab(SidebarTab.DASHBOARD);
+                      setIsMobileSidebarOpen(false);
                     }}
-                    referrerPolicy="no-referrer"
-                    className="w-5.5 h-5.5 rounded-md object-cover border border-slate-200 bg-white shrink-0"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-slate-700 truncate">{rep.owner}/{rep.repo}</p>
-                    <p className="text-[9px] font-mono text-slate-400">analyzed</p>
+                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-purple-100 cursor-pointer transition-all duration-250 truncate"
+                  >
+                    <img 
+                      src={`https://github.com/${owner}.png`} 
+                      alt={owner}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://github.com/github.png";
+                      }}
+                      referrerPolicy="no-referrer"
+                      className="w-5.5 h-5.5 rounded-md object-cover border border-slate-200 bg-white shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold text-slate-700 truncate">{owner}</p>
+                      <p className="text-[9px] font-mono text-slate-400">{count} {count === 1 ? 'repo' : 'repos'} analyzed</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
-            {historyReports.length > 3 && (
-              <div className="text-center mt-1.5 pt-1.5 border-t border-slate-200/60">
-                <p className="text-[9px] text-slate-400 animate-pulse">Scroll to see more</p>
-              </div>
-            )}
           </div>
         )}
 
@@ -789,8 +793,6 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
           </button>
         </div>
       </aside>
-
-      {/* MAIN CONTENT AREA */}
       <main id="dashboard-main-content" className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto">
         <AnimatePresence mode="wait">
           
@@ -801,12 +803,12 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="space-y-8"
+              className="space-y-5"
             >
               
               {/* Header section (Conditionally smaller if report exists) */}
               {!activeReport && !isAnalyzing && (
-                <div className="text-center max-w-xl mx-auto space-y-3.5 py-12">
+                <div className="text-center max-w-xl mx-auto space-y-3.5 py-6">
                   <div className="w-20 h-20 rounded-3xl bg-[#F5F3FF] text-[#7C3AED] flex items-center justify-center mx-auto shadow-md shadow-purple-100">
                     <Github className="w-10 h-10 animate-bounce" />
                   </div>
@@ -871,7 +873,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
 
               {/* CENTER SEARCH ANALYSIS CARD (Only show if not currently displaying report and not analyzing) */}
               {!activeReport && !isAnalyzing && (
-                <div className="max-w-2xl mx-auto py-4">
+                <div className="max-w-2xl mx-auto py-2">
                   <div className="space-y-4">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block text-center sm:text-left">GitHub Repository Address</label>
                     <div className="relative flex flex-col sm:flex-row gap-2 sm:gap-0 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/50">
@@ -1063,14 +1065,14 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                           </span>
                         </div>
                         <div className="text-[10px] font-mono text-slate-400">
-                          Last Updated: {activeReport.analyzedAt ? new Date(activeReport.analyzedAt).toLocaleDateString() : "Just Now"}
+                          Last Analyzed: {activeReport.analyzedAt ? new Date(activeReport.analyzedAt).toLocaleDateString() : "Just Now"}
                         </div>
                       </div>
 
                     </div>
 
                     {/* RIGHTSIDE: REPOSITORY HEALTH SCORE COMPONENT (5 Cols) */}
-                    <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-3xl border border-[#EDE9FE] shadow-sm flex flex-col justify-between space-y-6">
+                    <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-3xl border border-[#EDE9FE] shadow-sm flex flex-col items-center justify-center space-y-6">
                       
                       <div className="text-center">
                         <h3 className="font-display font-extrabold text-slate-900 text-sm uppercase tracking-wider">Repository Health Score</h3>
@@ -1117,21 +1119,21 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                           </svg>
 
                           {/* Inner Score text annotation */}
-                          <div className="absolute text-center">
+                          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                             <motion.span 
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="text-3xl font-black font-display text-slate-900 block leading-none"
+                              className="text-3xl font-black font-display text-slate-900 leading-none"
                             >
                               {activeScore}
                             </motion.span>
-                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">/ 100</span>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1">/ 100</span>
                           </div>
                         </div>
                       </div>
 
                       {/* Miniature progress bar benchmark definitions (As requested!) */}
-                      <div className="space-y-2 font-sans text-xs">
+                      <div className="w-full space-y-2 font-sans text-xs">
                         {activeMetrics.map((m, idx) => (
                           <div key={idx} className="space-y-1">
                             <div className="flex justify-between items-center text-[11px] text-slate-600 font-semibold leading-none">
@@ -1522,7 +1524,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                           initial={{ opacity: 0, x: 10 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -10 }}
-                          className="space-y-8"
+              className="space-y-5"
                         >
                           <div>
                             <h4 className="font-display font-extrabold text-slate-900 text-lg flex items-center gap-2">
@@ -1998,7 +2000,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {historyReports.map((rep) => (
+              {historyReports.map((rep) => (
                     <div 
                       key={rep.id} 
                       className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:border-brand-350 transition-all flex flex-col justify-between"
@@ -2236,19 +2238,6 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
             </motion.div>
           )}
 
-          {/* TAB 6: COPILOT */}
-          {activeTab === SidebarTab.COPILOT && (
-            <motion.div
-              key="tab-copilot"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              className="h-full"
-            >
-              <CopilotChat report={activeReport} userId={user?.id || ""} />
-            </motion.div>
-          )}
-
         </AnimatePresence>
       </main>
 
@@ -2258,6 +2247,47 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
           userId={user.id}
           onComplete={() => setShowOnboarding(false)}
         />
+      )}
+
+      {/* Floating Copilot Chat Widget */}
+      {activeReport && (
+        <>
+          {/* Chat Panel */}
+          <AnimatePresence>
+            {isCopilotOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="fixed bottom-20 right-5 w-[400px] h-[550px] z-50 rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
+                style={{ background: "#0a0a0f" }}
+              >
+                <CopilotChat
+                  report={activeReport}
+                  userId={user?.id || ""}
+                  onClose={() => setIsCopilotOpen(false)}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* FAB Button */}
+          <button
+            onClick={() => setIsCopilotOpen(!isCopilotOpen)}
+            className={`fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 ${
+              isCopilotOpen
+                ? "bg-slate-700 hover:bg-slate-600"
+                : "bg-gradient-to-r from-[#7C3AED] to-[#9061F9] hover:shadow-purple-200 hover:shadow-xl"
+            }`}
+          >
+            {isCopilotOpen ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            ) : (
+              <img src="/logo.svg" alt="CoPilot" className="w-8 h-8 rounded-lg" />
+            )}
+          </button>
+        </>
       )}
     </div>
   );
