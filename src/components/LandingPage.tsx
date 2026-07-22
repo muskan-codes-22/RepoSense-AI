@@ -39,7 +39,6 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const [activeStoryStep, setActiveStoryStep] = useState(0); // 0, 1, 2, 3, 4
-  const [isDarkHeader, setIsDarkHeader] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,16 +46,6 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       const rect = containerRef.current.getBoundingClientRect();
       const elementHeight = rect.height;
       const viewportHeight = window.innerHeight;
-
-      // Track active header state: dark header when over "How It Works" OR "About" dark sections
-      const isWithinHowItWorks = rect.top <= 64 && rect.bottom >= 64;
-      const aboutEl = document.getElementById("about");
-      let isWithinAbout = false;
-      if (aboutEl) {
-        const aboutRect = aboutEl.getBoundingClientRect();
-        isWithinAbout = aboutRect.top <= 64 && aboutRect.bottom >= 64;
-      }
-      setIsDarkHeader(isWithinHowItWorks || isWithinAbout);
 
       // Distance from top of element to top of viewport
       const scrolled = -rect.top;
@@ -250,11 +239,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* HEADER NAVBAR */}
       <header 
         id="landing-navbar" 
-        className={`sticky top-0 z-50 transition-all duration-300 ${
-          isDarkHeader 
-            ? "glass-dark border-b border-slate-800 text-white shadow-lg shadow-purple-950/25" 
-            : "glass border-b border-slate-200/80 text-slate-900"
-        }`}
+        className="sticky top-0 z-50 transition-all duration-300 glass border-b border-slate-200/80 text-slate-900"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
           <div className="flex items-center gap-3 -ml-4 sm:-ml-6 lg:-ml-8">
@@ -265,9 +250,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
 
           <nav className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
-            <a href="#features" className={`text-sm font-medium transition-colors ${isDarkHeader ? "text-slate-300 hover:text-[#7C3AED]" : "text-slate-600 hover:text-[#6D28D9]"}`}>Features</a>
-            <a href="#how-it-works" className={`text-sm font-medium transition-colors ${isDarkHeader ? "text-white hover:text-[#7C3AED]" : "text-slate-600 hover:text-[#6D28D9]"}`}>How It Works</a>
-            <a href="#about" className={`text-sm font-medium transition-colors ${isDarkHeader ? "text-slate-300 hover:text-[#7C3AED]" : "text-slate-600 hover:text-[#6D28D9]"}`}>About</a>
+            <a href="#features" className="text-base font-medium transition-colors text-slate-600 hover:text-[#6D28D9]">Features</a>
+            <a href="#how-it-works" className="text-base font-medium transition-colors text-slate-600 hover:text-[#6D28D9]">How It Works</a>
+            <a href="#about" className="text-base font-medium transition-colors text-slate-600 hover:text-[#6D28D9]">About</a>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -568,16 +553,16 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       <section 
         ref={containerRef} 
         id="how-it-works" 
-        className="relative bg-[#090C15] select-none text-white"
+        className="relative bg-[#F8F5F0] select-none text-slate-900"
         style={{ height: "450vh" }}
       >
         {/* Sticky viewport content box */}
-        <div className="sticky top-0 h-screen w-full flex flex-col justify-center overflow-hidden pt-20 pb-6 sm:pt-24 sm:pb-12 md:pb-16 px-4 sm:px-6 lg:px-8 bg-[#040712] z-10">
+        <div className="sticky top-0 h-screen w-full flex flex-col justify-center overflow-hidden pt-20 pb-6 sm:pt-24 sm:pb-12 md:pb-16 px-4 sm:px-6 lg:px-8 bg-[#F8F5F0] z-10">
           
-          {/* Subtle Glowing dots and Linear matrix grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e1b4b_1px,transparent_1px),linear-gradient(to_bottom,#1e1b4b_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-30 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
-          <div className="absolute top-[20%] left-[20%] w-[250px] h-[250px] rounded-full bg-purple-500/10 blur-[100px] pointer-events-none animate-pulse" />
-          <div className="absolute bottom-[20%] right-[10%] w-[350px] h-[350px] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none animate-float-slow" />
+          {/* Subtle Faint Geometric Grid Pattern */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#d4d0c8_1px,transparent_1px),linear-gradient(to_bottom,#d4d0c8_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-40 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
+          <div className="absolute top-[20%] left-[20%] w-[250px] h-[250px] rounded-full bg-purple-400/8 blur-[100px] pointer-events-none animate-pulse" />
+          <div className="absolute bottom-[20%] right-[10%] w-[350px] h-[350px] rounded-full bg-indigo-400/8 blur-[120px] pointer-events-none animate-float-slow" />
 
           {/* Section Header Title block (Placed outside grid, disappears at success stage) */}
           <AnimatePresence>
@@ -588,13 +573,13 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 exit={{ opacity: 0, y: -30 }}
                 className="max-w-4xl mx-auto text-center space-y-3 mb-6 sm:mb-12 cursor-default relative z-30 font-sans"
               >
-                <div className="inline-flex gap-2 px-3.5 py-1.5 rounded-full bg-[#6D28D9]/20 border border-[#6D28D9]/40 text-[#8B5CF6] text-xs font-bold uppercase tracking-widest leading-none">
+                <div className="inline-flex gap-2 px-3.5 py-1.5 rounded-full bg-purple-50 border border-purple-200 text-[#6D28D9] text-xs font-bold uppercase tracking-widest leading-none">
                   HOW REPOSENSE WORKS
                 </div>
-                <h3 className="font-display font-extrabold text-2xl sm:text-4xl text-white tracking-tight">
+                <h3 className="font-display font-extrabold text-2xl sm:text-4xl text-[#0F172A] tracking-tight">
                   Analyze Any GitHub Repository in Seconds
                 </h3>
-                <p className="text-slate-400 text-xs sm:text-sm max-w-2xl mx-auto">
+                <p className="text-slate-600 text-xs sm:text-sm max-w-2xl mx-auto">
                   Watch RepoSense transform a repository URL into a complete AI-powered breakdown.
                 </p>
               </motion.div>
@@ -610,7 +595,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 
                 {/* Timeline bar with dots */}
                 <div className="hidden md:flex flex-col items-center h-80 relative mt-2 shrink-0 select-none">
-                  <div className="w-1 h-full bg-slate-800/80 rounded-full overflow-hidden absolute">
+                  <div className="w-1 h-full bg-purple-200 rounded-full overflow-hidden absolute">
                     <div 
                       ref={lineRef}
                       className="w-full bg-gradient-to-b from-[#6D28D9] via-[#7C3AED] to-[#8B5CF6] origin-top"
@@ -629,15 +614,15 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         className="w-7 h-7 rounded-full border-2 absolute flex items-center justify-center transition-all z-10 duration-300 transform hover:scale-110 active:scale-95 cursor-pointer outline-none"
                         style={{
                           top: `${stepIdx * 25}%`,
-                          backgroundColor: isCurrent ? "#6D28D9" : isPast ? "#1E1B4B" : "#111827",
-                          borderColor: isCurrent ? "#A78BFA" : isPast ? "#6D28D9" : "#374151",
+                          backgroundColor: isCurrent ? "#6D28D9" : isPast ? "#EDE9FE" : "#FFFFFF",
+                          borderColor: isCurrent ? "#A78BFA" : isPast ? "#6D28D9" : "#D1D5DB",
                         }}
                         title={`Go to view stage ${stepIdx + 1}`}
                       >
                         {isPast ? (
-                          <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                          <Check className="w-3.5 h-3.5 text-[#6D28D9]" strokeWidth={3} />
                         ) : (
-                          <span className={`text-[10px] font-bold ${isCurrent ? "text-white animate-pulse" : "text-slate-400"}`}>
+                          <span className={`text-[10px] font-bold ${isCurrent ? "text-white animate-pulse" : "text-slate-500"}`}>
                             {stepIdx + 1}
                           </span>
                         )}
@@ -658,20 +643,20 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         transition={{ duration: 0.35 }}
                         className="space-y-4 font-sans"
                       >
-                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-[#6D28D9]/20 border border-[#6D28D9]/40 text-[#A78BFA] tracking-widest uppercase">
+                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-purple-50 border border-purple-200 text-[#6D28D9] tracking-widest uppercase">
                           STEP 01
                         </span>
-                        <h4 className="text-2xl sm:text-3xl font-extrabold text-white font-display leading-tight select-none">
+                        <h4 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] font-display leading-tight select-none">
                           Paste Repository URL
                         </h4>
-                        <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-md select-all">
+                        <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-md select-all">
                           Paste any public GitHub repo link into our analyzer. RepoSense instantly scans branches, file folders, and inner code layers — no login or tokens needed.
                         </p>
                         <button
                           onClick={() => scrollToStep(1)}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8B5CF6] hover:text-white transition-colors cursor-pointer group"
+                          className="inline-flex items-center gap-1.5 text-sm font-bold text-[#6D28D9] hover:text-[#4C1D95] transition-colors cursor-pointer group"
                         >
-                          Watch AI Processing <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                          Watch AI Processing <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </button>
                       </motion.div>
                     )}
@@ -685,20 +670,20 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         transition={{ duration: 0.35 }}
                         className="space-y-4 font-sans"
                       >
-                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 tracking-widest uppercase">
+                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-purple-50 border border-purple-200 text-[#6D28D9] tracking-widest uppercase">
                           STEP 02
                         </span>
-                        <h4 className="text-2xl sm:text-3xl font-extrabold text-white font-display leading-tight select-none">
+                        <h4 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] font-display leading-tight select-none">
                           AI Processing Repository
                         </h4>
-                        <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-md select-all">
+                        <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-md select-all">
                           Our engines run safe background micro-tasks. We extract codebase architectures, synthesize structure logic, list modules, and verify configuration schemas cleanly within seconds.
                         </p>
                         <button
                           onClick={() => scrollToStep(2)}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8B5CF6] hover:text-white transition-colors cursor-pointer group"
+                          className="inline-flex items-center gap-1.5 text-sm font-bold text-[#6D28D9] hover:text-[#4C1D95] transition-colors cursor-pointer group"
                         >
-                          Explore Instant Breakdown <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                          Explore Instant Breakdown <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </button>
                       </motion.div>
                     )}
@@ -712,20 +697,20 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         transition={{ duration: 0.35 }}
                         className="space-y-4 font-sans"
                       >
-                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-indigo-505/20 border border-indigo-500/30 text-indigo-300 tracking-widest uppercase">
+                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-purple-50 border border-purple-200 text-[#6D28D9] tracking-widest uppercase">
                           STEP 03
                         </span>
-                        <h4 className="text-2xl sm:text-3xl font-extrabold text-white font-display leading-tight select-none">
+                        <h4 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] font-display leading-tight select-none">
                           Instant Repository Breakdown
                         </h4>
-                        <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-md select-all">
+                        <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-md select-all">
                           Immediately interact with the deep-dive report dashboards. Review high-fidelity metrics, technology scores, system summaries, and setup steps nicely framed.
                         </p>
                         <button
                           onClick={() => scrollToStep(3)}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8B5CF6] hover:text-white transition-colors cursor-pointer group"
+                          className="inline-flex items-center gap-1.5 text-sm font-bold text-[#6D28D9] hover:text-[#4C1D95] transition-colors cursor-pointer group"
                         >
-                          Inspect CoPilot Queries <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                          Inspect CoPilot Queries <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </button>
                       </motion.div>
                     )}
@@ -739,20 +724,20 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         transition={{ duration: 0.35 }}
                         className="space-y-4 font-sans"
                       >
-                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-pink-500/15 border border-pink-500/30 text-pink-300 tracking-widest uppercase">
+                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-purple-50 border border-purple-200 text-[#6D28D9] tracking-widest uppercase">
                           BONUS FEATURE
                         </span>
-                        <h4 className="text-2xl sm:text-3xl font-extrabold text-white font-display leading-tight select-none">
+                        <h4 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] font-display leading-tight select-none">
                           Ask Questions About Repo
                         </h4>
-                        <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-md select-all">
+                        <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-md select-all">
                           Curious about a specific file or folder? Ask our AI chat anything — like where settings are used or how parts connect — and get quick answers.
                         </p>
                         <button
                           onClick={() => scrollToStep(4)}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8B5CF6] hover:text-white transition-colors cursor-pointer group"
+                          className="inline-flex items-center gap-1.5 text-sm font-bold text-[#6D28D9] hover:text-[#4C1D95] transition-colors cursor-pointer group"
                         >
-                          Complete Inspection <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                          Complete Inspection <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </button>
                       </motion.div>
                     )}
@@ -766,18 +751,18 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         transition={{ duration: 0.35 }}
                         className="space-y-4 font-sans"
                       >
-                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-300 tracking-widest uppercase animate-pulse">
+                        <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold bg-purple-50 border border-purple-200 text-[#6D28D9] tracking-widest uppercase animate-pulse">
                           EXPERIENCE READY
                         </span>
-                        <h4 className="text-2xl sm:text-3xl font-extrabold text-white font-display leading-tight select-none">
+                        <h4 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] font-display leading-tight select-none">
                           Ready to Ship Faster?
                         </h4>
-                        <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-md select-all">
+                        <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-md select-all">
                           No more wasting hours digging through folders and guessing how things work. RepoSense gives you clear answers from the start.
                         </p>
                         <button
                           onClick={() => onGetStarted()}
-                          className="inline-flex items-center gap-1.5 px-6 py-3 bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6] text-white rounded-xl text-xs font-bold hover:shadow-lg shadow-purple-500/20 hover:scale-[1.02] transform transition-all cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-6 py-3 bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6] text-white rounded-xl text-sm font-bold hover:shadow-lg shadow-purple-500/20 hover:scale-[1.02] transform transition-all cursor-pointer"
                         >
                           Launch Workspace Now <Sparkles className="w-4 h-4" />
                         </button>
@@ -793,29 +778,29 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                   
                   {/* SCREEN 1: Input mock block */}
                   <motion.div
-                    className="absolute inset-0 bg-[#0E1324] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col pointer-events-none"
+                    className="absolute inset-0 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col pointer-events-none"
                     animate={getScreenVariants(0, activeStoryStep)}
                     transition={{ type: "spring", stiffness: 95, damping: 18 }}
                   >
-                    <div className="px-4 py-3 bg-[#070914] border-b border-slate-850 flex items-center justify-between">
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                       <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block" />
                       </div>
-                      <span className="text-[10px] text-slate-500 font-mono">be749013/reposense-ai/paste-url</span>
+                      <span className="text-[10px] text-slate-400 font-mono">be749013/reposense-ai/paste-url</span>
                       <div className="w-8" />
                     </div>
                     
-                    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-950/40 relative">
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50/50 relative">
                       <div className="space-y-4 w-full max-w-xs text-center relative z-20">
-                        <div className="w-11 h-11 bg-purple-500/10 rounded-2xl flex items-center justify-center mx-auto text-[#8B5CF6] border border-purple-500/20">
-                          <Github className="w-5.5 h-5.5" />
+                        <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto text-[#6D28D9] border border-purple-100">
+                          <Github className="w-6 h-6" />
                         </div>
                         
                         <div className="space-y-0.5">
-                          <h5 className="font-display font-medium text-slate-200 text-xs">Drop public repository address</h5>
-                          <p className="text-[10px] text-slate-500">Fast sandbox-safe indexing</p>
+                          <h5 className="font-display font-medium text-slate-900 text-sm">Drop public repository address</h5>
+                          <p className="text-[11px] text-slate-500">Fast sandbox-safe indexing</p>
                         </div>
 
                         <div className="relative">
@@ -823,13 +808,13 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                             type="text" 
                             readOnly
                             value="https://github.com/facebook/react"
-                            className="w-full px-3.5 py-2 rounded-lg border border-slate-800 bg-[#070914] text-[10.5px] text-slate-350 focus:ring-0 text-left font-mono"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:ring-0 text-left font-mono"
                           />
                         </div>
 
                         <button 
                           disabled
-                          className="w-full py-2 bg-[#6D28D9] rounded-lg text-white font-sans font-semibold text-[11px] shadow-md shadow-[#6D28D9]/10 flex items-center justify-center gap-1.5"
+                          className="w-full py-2.5 bg-[#6D28D9] rounded-lg text-white font-sans font-semibold text-xs shadow-md shadow-purple-200/30 flex items-center justify-center gap-1.5"
                         >
                           Analyze Codebase <ArrowRight className="w-3.5 h-3.5" />
                         </button>
@@ -861,66 +846,62 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
                   {/* SCREEN 2: Loading State mock block */}
                   <motion.div
-                    className="absolute inset-0 bg-[#0E1324] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col pointer-events-none"
+                    className="absolute inset-0 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col pointer-events-none"
                     animate={getScreenVariants(1, activeStoryStep)}
                     transition={{ type: "spring", stiffness: 95, damping: 18 }}
                   >
-                    <div className="px-4 py-3 bg-[#070914] border-b border-slate-850 flex items-center justify-between">
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                       <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block" />
                       </div>
-                      <span className="text-[10px] text-slate-500 font-mono">be749013/reposense-ai/indexer</span>
+                      <span className="text-[10px] text-slate-400 font-mono">be749013/reposense-ai/indexer</span>
                       <div className="w-8" />
                     </div>
                     
-                    <div className="flex-1 flex flex-col items-center justify-center p-5 bg-slate-950/40 relative">
+                    <div className="flex-1 flex flex-col items-center justify-center p-5 bg-slate-50/50 relative">
                       <div className="w-full max-w-sm space-y-3 relative z-20">
                         <div className="text-center space-y-1 mb-1">
-                          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-500/10 border border-purple-500/20 animate-spin mb-1">
-                            <img src="/logo.svg" alt="RepoSense AI" className="w-3.5 h-3.5" />
+                          <div className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-purple-50 border border-purple-200 animate-spin mb-1">
+                            <img src="/logo.svg" alt="RepoSense AI" className="w-4 h-4" />
                           </div>
-                          <h5 className="font-display font-medium text-slate-200 text-xs">Parsing files & structures</h5>
-                          <p className="text-[9px] text-[#8B5CF6] font-semibold uppercase tracking-wider font-mono">facebook/react</p>
+                          <h5 className="font-display font-medium text-slate-900 text-xs">Parsing files & structures</h5>
+                          <p className="text-[10px] text-[#6D28D9] font-semibold uppercase tracking-wider font-mono">facebook/react</p>
                         </div>
 
                         {/* checklist */}
-                        <div className="space-y-1.5 bg-[#070914] rounded-xl border border-slate-850 p-3 font-sans text-[11px] text-slate-400">
-                          <div className="flex items-center justify-between text-emerald-400 font-medium">
+                        <div className="space-y-1.5 bg-white rounded-xl border border-slate-200 p-3 font-sans text-xs text-slate-600">
+                          <div className="flex items-center text-emerald-600 font-medium">
                             <span className="flex items-center gap-2">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                               ✓ Reading README Documentation
                             </span>
-                            <span className="text-[9px] font-mono tracking-tight bg-emerald-500/10 px-1.5 py-0.5 rounded text-emerald-300">100%</span>
                           </div>
                           
-                          <div className="flex items-center justify-between text-emerald-400 font-medium">
+                          <div className="flex items-center text-emerald-600 font-medium">
                             <span className="flex items-center gap-2">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                               ✓ Detecting Framework & tech parameters
                             </span>
-                            <span className="text-[9px] font-mono tracking-tight bg-emerald-500/10 px-1.5 py-0.5 rounded text-emerald-300">100%</span>
                           </div>
 
-                          <div className="flex items-center justify-between text-purple-300 font-semibold">
+                          <div className="flex items-center text-[#6D28D9] font-semibold">
                             <span className="flex items-center gap-2 animate-pulse">
                               <span className="w-3.5 h-3.5 border-2 border-[#6D28D9] border-t-transparent rounded-full animate-spin shrink-0" />
                               Analyzing Component Files Tree
                             </span>
-                            <span className="text-[9px] font-mono bg-purple-555/10 px-1.5 py-0.5 rounded animate-pulse text-[#8B5CF6]">42%</span>
                           </div>
 
-                          <div className="flex items-center justify-between text-slate-600">
+                          <div className="flex items-center text-slate-400">
                             <span className="flex items-center gap-2">
-                              <span className="w-3 h-3 rounded-full bg-slate-850 shrink-0" />
+                              <span className="w-3 h-3 rounded-full bg-slate-200 shrink-0" />
                               Extracting Main Dependency Packages
                             </span>
-                            <span className="text-[9px] font-mono text-slate-705">Queued</span>
                           </div>
                         </div>
 
-                        <div className="w-full bg-slate-850 h-1 rounded-full overflow-hidden">
+                        <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                           <motion.div 
                             className="h-full bg-[#6D28D9]"
                             animate={{ width: ["10%", "60%", "72%", "10%"] }}
@@ -956,101 +937,112 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
                   {/* SCREEN 3: Dashboard breakdown report mockup block */}
                   <motion.div
-                    className="absolute inset-0 bg-[#0E1324] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col pointer-events-none"
+                    className="absolute inset-0 bg-white border border-slate-200 rounded-2xl shadow-[0_0_30px_rgba(109,40,217,0.15)] overflow-hidden flex flex-col pointer-events-none"
                     animate={getScreenVariants(2, activeStoryStep)}
                     transition={{ type: "spring", stiffness: 95, damping: 18 }}
                   >
-                    <div className="px-4 py-3 bg-[#070914] border-b border-slate-850 flex items-center justify-between">
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                       <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block" />
                       </div>
-                      <span className="text-[10px] text-slate-500 font-mono">be749013/reposense-ai/report</span>
+                      <span className="text-[10px] text-slate-400 font-mono">be749013/reposense-ai/report</span>
                       <div className="w-8" />
                     </div>
                     
-                    <div className="flex-1 p-4 bg-[#05070f] flex flex-col justify-between text-slate-400">
-                      <div className="flex items-center justify-between border-b border-slate-850 pb-2 mb-2">
+                    <div className="flex-1 p-3 bg-slate-50/80 flex flex-col gap-2 text-slate-600">
+                      {/* Main repo info card */}
+                      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3">
+                        {/* Tags */}
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[8px] tracking-wide text-purple-400 uppercase font-black bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">Indexed Profile</span>
-                          <span className="font-display font-medium text-xs text-slate-100">facebook/react</span>
+                          <span className="px-2.5 py-0.5 bg-purple-50 text-[#6D28D9] text-[10px] font-bold uppercase tracking-wider rounded border border-purple-200">facebook</span>
+                          <span className="flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider rounded border border-emerald-200">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                            Public
+                          </span>
                         </div>
-                        <span className="flex items-center bg-slate-900 text-[#8B5CF6] px-1.5 py-0.5 rounded text-[8px] border border-slate-800 gap-1 font-mono">
-                          <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" strokeWidth={3} /> 224k
-                        </span>
-                      </div>
 
-                      <div className="grid grid-cols-2 gap-2 flex-1 mb-2">
-                        {/* Technologies card */}
-                        <div className="bg-[#0b0e1a] border border-slate-850 p-2.5 rounded-xl flex flex-col justify-between space-y-1">
-                          <span className="text-[8px] text-slate-500 uppercase font-bold tracking-widest leading-none block">framework / language</span>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1 text-[11px] text-slate-200 font-semibold">
-                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 block" />
-                              <span>TypeScript</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-[11px] text-slate-350">
-                              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 block" />
-                              <span>Flow Compiler</span>
-                            </div>
+                        {/* Repo name and description */}
+                        <div>
+                          <h5 className="font-display font-extrabold text-slate-900 text-sm leading-tight">facebook/react</h5>
+                          <p className="text-[11px] text-slate-500 leading-snug">A JavaScript library for building user interfaces</p>
+                        </div>
+
+                        {/* Tech stack */}
+                        <div>
+                          <span className="text-[9px] text-slate-400 uppercase font-bold tracking-widest block mb-1.5">Primary Tech Stack</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="px-2.5 py-0.5 bg-purple-50 text-[#6D28D9] rounded text-[10px] font-bold border border-purple-100">JavaScript</span>
+                            <span className="px-2.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold border border-blue-100">React</span>
+                            <span className="px-2.5 py-0.5 bg-cyan-50 text-cyan-600 rounded text-[10px] font-bold border border-cyan-100">TypeScript</span>
                           </div>
                         </div>
 
-                        {/* Statistics card */}
-                        <div className="bg-[#0b0e1a] border border-slate-850 p-2.5 rounded-xl flex flex-col justify-between space-y-1">
-                          <span className="text-[8px] text-slate-500 uppercase font-bold tracking-widest leading-none block">COMPLEXITY RATE</span>
-                          <div>
-                            <span className="text-lg font-black text-[#8B5CF6] block font-display leading-none">9.4/10</span>
-                            <span className="text-[7.5px] uppercase font-bold tracking-wider px-1 bg-red-500/15 border border-red-500/20 text-red-400 rounded mt-1 inline-block">highly complex</span>
+                        {/* Stats and last updated */}
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                          <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                            <span className="flex items-center gap-1">
+                              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                              <strong className="text-slate-700">224k</strong>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <GitFork className="w-3 h-3 text-slate-400" />
+                              <strong className="text-slate-700">45k</strong>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 text-amber-500" />
+                              <strong className="text-slate-700">1.2k</strong>
+                            </span>
                           </div>
-                        </div>
-
-                        {/* AI advisor layout */}
-                        <div className="bg-[#0b0e1a] border border-slate-850 p-2.5 rounded-xl col-span-2 flex flex-col justify-between">
-                          <span className="text-[8px] text-slate-400 uppercase font-extrabold tracking-wider block mb-1">ai structural diagnostics statement</span>
-                          <p className="text-[9.5px] text-slate-300 leading-relaxed font-sans select-all">
-                            "The monorepo contains multiple workspace packages (react, react-dom, react-reconciler). We suggest replacing legacy scripts with dynamic <span className="text-[#8B5CF6] font-bold">Vite</span> workflows to optimize bundlers."
-                          </p>
+                          <span className="text-[10px] text-slate-400">Last Updated: 7/1/2026</span>
                         </div>
                       </div>
 
-                      <div className="p-1.5 bg-[#080b14] rounded-lg border border-slate-850 flex items-center justify-between text-[8px] font-mono mt-1 select-all">
-                        <span className="text-slate-500">Repository setup profile:</span>
-                        <span className="text-emerald-400 font-semibold">Ready / Sandbox Compliant</span>
+                      {/* Project Overview card */}
+                      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-purple-50 text-[#6D28D9] flex items-center justify-center">
+                            <BookOpen className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="font-display font-extrabold text-slate-900 text-xs">Project Overview</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          React is a declarative, component-based JavaScript library for building user interfaces. It lets you compose complex UIs from small and isolated pieces of code called components. React components manage their own state and can accept props (properties) passed from parent components. The library uses a virtual DOM to efficiently update and render only the components that change, optimizing performance. React supports server-side rendering and can be paired with frameworks like Next.js for full-stack applications.
+                        </p>
                       </div>
                     </div>
                   </motion.div>
 
                   {/* SCREEN 4: Interactive AI Chat mockup block */}
                   <motion.div
-                    className="absolute inset-0 bg-[#0E1324] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col pointer-events-none"
+                    className="absolute inset-0 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col pointer-events-none"
                     animate={getScreenVariants(3, activeStoryStep)}
                     transition={{ type: "spring", stiffness: 95, damping: 18 }}
                   >
-                    <div className="px-4 py-3 bg-[#070914] border-b border-slate-850 flex items-center justify-between">
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                       <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block" />
                       </div>
-                      <span className="text-[10px] text-slate-500 font-mono">be749013/reposense-ai/chat</span>
+                      <span className="text-[10px] text-slate-400 font-mono">be749013/reposense-ai/chat</span>
                       <div className="w-8" />
                     </div>
                     
-                    <div className="flex-1 p-3 bg-[#05070f] flex flex-col justify-between text-slate-400">
-                      <div className="flex items-center gap-1.5 border-b border-slate-850 pb-2 mb-2">
-                        <MessageSquare className="w-4 h-4 text-[#8B5CF6]" />
+                    <div className="flex-1 p-3 bg-slate-50/80 flex flex-col justify-between text-slate-600">
+                      <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2 mb-2">
+                        <MessageSquare className="w-5 h-5 text-[#6D28D9]" />
                         <div className="text-left">
-                          <h6 className="font-display font-medium text-[11px] text-white leading-none">RepoSense CoPilot Ask</h6>
-                          <span className="text-[8px] text-slate-500 block">Workspace contextual vector models</span>
+                          <h6 className="font-display font-medium text-sm text-slate-900 leading-none">RepoSense CoPilot Ask</h6>
+                          <span className="text-[10px] text-slate-400 block">Workspace contextual vector models</span>
                         </div>
                       </div>
 
                       <div className="flex-1 space-y-3.5 flex flex-col justify-start">
                         {/* User Question */}
                         <div className="flex gap-2.5 justify-end items-start text-right">
-                          <div className="bg-[#1E1B4B] border border-[#6D28D9]/20 py-1.5 px-2.5 rounded-xl text-[9.5px] leading-relaxed max-w-[80%] text-left text-slate-250 font-sans">
+                          <div className="bg-purple-50 border border-purple-200 py-2 px-3 rounded-xl text-xs leading-relaxed max-w-[80%] text-left text-slate-700 font-sans">
                             "What does this react-reconciler package handle?"
                           </div>
                         </div>
@@ -1062,11 +1054,11 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                           animate={{ opacity: activeStoryStep === 3 ? 1 : 0, y: activeStoryStep === 3 ? 0 : 5 }}
                           transition={{ delay: 0.5, duration: 0.3 }}
                         >
-                          <div className="w-5.5 h-5.5 rounded-full bg-purple-650 border border-[#6D28D9]/30 font-bold flex items-center justify-center text-[8px] text-white shrink-0 font-display">
+                          <div className="w-6 h-6 rounded-full bg-[#6D28D9] border border-purple-300 font-bold flex items-center justify-center text-[10px] text-white shrink-0 font-display">
                             R
                           </div>
-                          <div className="bg-[#0b0e1a] border border-slate-850 p-2.5 rounded-xl text-[9.5px] leading-relaxed max-w-[80%] text-left text-slate-300 font-sans">
-                            <span className="font-semibold text-[#8B5CF6] block mb-0.5">Answer:</span>
+                          <div className="bg-white border border-slate-200 p-3 rounded-xl text-xs leading-relaxed max-w-[80%] text-left text-slate-600 font-sans">
+                            <span className="font-semibold text-[#6D28D9] block mb-0.5">Answer:</span>
                             "The reconciler acts as the core Virtual DOM engine. It calculates changes across element mounts, processes diff files, and updates targeted hardware nodes."
                           </div>
                         </motion.div>
@@ -1076,7 +1068,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         <input 
                           type="text" 
                           placeholder="Ask CoPilot any code question..." 
-                          className="w-full bg-[#070914] border border-slate-850 rounded-lg py-1.5 px-3 pl-3 text-[9px] text-slate-400 focus:ring-0"
+                          className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 pl-3 text-xs text-slate-400 focus:ring-0"
                           readOnly
                         />
                       </div>
@@ -1085,31 +1077,31 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
                   {/* SCREEN 5: Immersive Done Final launch card mock block */}
                   <motion.div
-                    className="absolute inset-0 bg-[#0E1324] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col pointer-events-none"
+                    className="absolute inset-0 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col pointer-events-none"
                     animate={getScreenVariants(4, activeStoryStep)}
                     transition={{ type: "spring", stiffness: 95, damping: 18 }}
                   >
-                    <div className="px-4 py-3 bg-[#070914] border-b border-slate-850 flex items-center justify-between">
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                       <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block" />
                       </div>
-                      <span className="text-[10px] text-slate-500 font-mono">be749013/reposense-ai/launch</span>
+                      <span className="text-[10px] text-slate-400 font-mono">be749013/reposense-ai/launch</span>
                       <div className="w-8" />
                     </div>
                     
-                    <div className="flex-1 p-6 bg-gradient-to-b from-[#090b14] to-[#120a2e] flex flex-col items-center justify-center text-slate-300 relative overflow-hidden text-center">
-                      <div className="absolute inset-x-0 bottom-0 top-0 bg-[radial-gradient(ellipse_at_center,rgba(124,58,237,0.18),transparent_70%)]" />
+                    <div className="flex-1 p-6 bg-gradient-to-b from-white to-purple-50/50 flex flex-col items-center justify-center text-slate-700 relative overflow-hidden text-center">
+                      <div className="absolute inset-x-0 bottom-0 top-0 bg-[radial-gradient(ellipse_at_center,rgba(109,40,217,0.08),transparent_70%)]" />
                       
                       {/* Spinning code crystal */}
                       <div className="relative mb-4 z-20">
                         <motion.div 
-                          className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#6D28D9] to-[#A78BFA] flex items-center justify-center text-white shadow-xl shadow-purple-500/10 border border-white/10"
+                          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6D28D9] to-[#A78BFA] flex items-center justify-center text-white shadow-xl shadow-purple-200/50 border border-white/10"
                           animate={{ rotate: 360 }}
                           transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
                         >
-                           <img src="/logo.svg" alt="RepoSense AI" className="w-5.5 h-5.5" />
+                           <img src="/logo.svg" alt="RepoSense AI" className="w-6 h-6" />
                         </motion.div>
                         <motion.div 
                           className="absolute -inset-1.5 rounded-2xl bg-[#6D28D9]/20 blur-xl pointer-events-none select-none"
@@ -1120,17 +1112,17 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
                       <div className="text-center space-y-3.5 max-w-xs relative z-20 font-sans">
                         <div className="space-y-0.5">
-                          <h5 className="font-display font-extrabold text-white text-sm tracking-tight leading-none">Understand Any Codebase</h5>
-                          <p className="text-[9.5px] text-slate-400 tracking-tight">Paste. Analyze. Learn.</p>
+                          <h5 className="font-display font-extrabold text-slate-900 text-base tracking-tight leading-none">Understand Any Codebase</h5>
+                          <p className="text-xs text-slate-500 tracking-tight">Paste. Analyze. Learn.</p>
                         </div>
                         
-                        <p className="text-[9.5px] text-slate-500 leading-snug">
+                        <p className="text-xs text-slate-500 leading-snug">
                           Unlock modular file trees and interactive system diagnostics in seconds.
                         </p>
 
                         <button 
                           onClick={() => onGetStarted()}
-                          className="w-full py-2.5 bg-gradient-to-r from-[#6D28D9] via-[#7C3AED] to-[#8B5CF6] text-white rounded-xl font-bold text-[10.5px] shadow-lg shadow-purple-500/15 flex items-center justify-center gap-1 hover:brightness-110 active:scale-98 cursor-pointer pointer-events-auto"
+                          className="w-full py-2.5 bg-gradient-to-r from-[#6D28D9] via-[#7C3AED] to-[#8B5CF6] text-white rounded-xl font-bold text-xs shadow-lg shadow-purple-300/40 flex items-center justify-center gap-1 hover:brightness-110 active:scale-98 cursor-pointer pointer-events-auto"
                         >
                           <span>Try RepoSense Now</span>
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -1138,8 +1130,8 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                       </div>
 
                       {/* Concentric planetary rings */}
-                      <div className="absolute w-[180px] h-[180px] rounded-full border border-slate-800/40 pointer-events-none" />
-                      <div className="absolute w-[240px] h-[240px] rounded-full border border-slate-800/20 pointer-events-none" />
+                      <div className="absolute w-[180px] h-[180px] rounded-full border border-slate-200 pointer-events-none" />
+                      <div className="absolute w-[240px] h-[240px] rounded-full border border-slate-100 pointer-events-none" />
                     </div>
                   </motion.div>
 
@@ -1156,18 +1148,18 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       <AboutSection />
 
       {/* FOOTER */}
-      <footer className="bg-[#050810] text-slate-500 py-10 border-t border-slate-800/50">
+      <footer className="bg-[#F8F5F0] text-slate-500 py-10 border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <div className="flex items-center gap-2">
             <img src="/logo.svg" alt="RepoSense AI" className="w-4 h-4 rounded-md" />
-            <span className="font-display font-semibold text-slate-300">RepoSense AI</span>
+            <span className="font-display font-semibold text-slate-900">RepoSense AI</span>
           </div>
           <div className="flex items-center gap-6 text-[11px]">
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#how-it-works" className="hover:text-white transition-colors">How It Works</a>
-            <a href="#about" className="hover:text-white transition-colors">About</a>
+            <a href="#features" className="hover:text-[#6D28D9] transition-colors">Features</a>
+            <a href="#how-it-works" className="hover:text-[#6D28D9] transition-colors">How It Works</a>
+            <a href="#about" className="hover:text-[#6D28D9] transition-colors">About</a>
           </div>
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-slate-400">
             © 2026 RepoSense AI. Powered by NVIDIA LLM API.
           </p>
         </div>
