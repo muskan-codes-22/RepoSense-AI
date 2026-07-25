@@ -273,18 +273,18 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 lg:py-28">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           
-          {/* HERO LEFT (45%) */}
-          <div className="lg:col-span-12 xl:col-span-5 space-y-8 flex flex-col justify-center text-center xl:text-left">
+          {/* HERO LEFT (55%) */}
+          <div className="lg:col-span-12 xl:col-span-6 space-y-8 flex flex-col justify-center text-center xl:text-left">
             
             {/* Logo and Tagline */}
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F5F3FF] border border-[#EDE9FE] text-[#6D28D9] text-xs font-semibold uppercase tracking-wider">
                 <Github className="w-3.5 h-3.5" /> Public Repo Analyzer
               </div>
-              <h1 className="font-display font-extrabold text-4xl sm:text-5xl lg:text-5xl leading-none tracking-tight text-slate-900 pb-1 select-none">
+              <h1 className="font-sans font-[900] text-5xl sm:text-6xl lg:text-[4.25rem] leading-[1.05] tracking-tight text-slate-900 pb-1 select-none">
                 Analyze any repository with AI
               </h1>
-              <h2 className="font-display font-bold text-2xl sm:text-3xl text-[#6D28D9] leading-tight">
+              <h2 className="font-display font-bold text-xl sm:text-2xl text-[#6D28D9] leading-tight">
                 AI-Powered GitHub Repository Analyzer
               </h2>
             </div>
@@ -295,44 +295,42 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </p>
 
             {/* CTA Button and Info */}
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 pt-2">
               <button
                 id="hero-cta-btn"
-                onClick={() => onGetStarted()}
-                className="group relative px-8 py-4 w-full sm:w-auto font-semibold text-white bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6] rounded-xl shadow-lg shadow-purple-200 py-2 hover:scale-[1.02] transition-all hover:shadow-[#6D28D9]/30 duration-200 overflow-hidden flex items-center justify-center gap-2"
+                onClick={() => {
+                  document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="group relative px-8 py-4 w-full sm:w-auto font-semibold text-white bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6] rounded-xl shadow-lg shadow-purple-200 py-3.5 hover:scale-[1.02] transition-all hover:shadow-[#6D28D9]/30 duration-200 overflow-hidden flex items-center justify-center gap-2"
               >
                 <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span>Get Started Analyzing</span>
+                <span>See How It Works</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
-              <p className="text-xs text-slate-400 flex items-center gap-1.5 justify-center xl:justify-start">
-                <Clock className="w-3.5 h-3.5 text-purple-400" /> Got a repository link? Let's explore it together.
+              <p className="text-sm text-slate-500 flex items-center gap-2 justify-center xl:justify-start leading-relaxed">
+                <Clock className="w-4 h-4 text-[#7C3AED] shrink-0" />
+                <span>Paste any GitHub repo and get a full AI-powered breakdown in seconds.</span>
               </p>
             </div>
           </div>
 
-          {/* HERO RIGHT (55%) - Browser Mockup with Animations */}
-          <div className="lg:col-span-7">
-            <div className="relative mx-auto max-w-2xl w-full font-sans">
+          {/* HERO RIGHT (45%) - Browser Mockup with Animations */}
+          <div className="lg:col-span-6">
+            <div className="relative mx-auto max-w-xl w-full font-sans">
               {/* Outer Decorative Glow */}
-              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6] opacity-20 blur-xl animate-pulse" />
+              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6] opacity-10 blur-lg animate-pulse" />
 
               {/* Browser Shell Box */}
-              <div className="relative rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden font-mono flex flex-col h-[400px]">
+              <div className="relative rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden font-mono flex flex-col h-[380px]">
                 
                 {/* Browser Title Bar */}
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                  <div className="flex gap-1.5 font-sans">
-                    <span className="w-3 h-3 rounded-full bg-rose-400 block" />
-                    <span className="w-3 h-3 rounded-full bg-amber-400 block" />
-                    <span className="w-3 h-3 rounded-full bg-emerald-400 block" />
-                  </div>
-                  <div className="w-3/5 bg-white border border-slate-200/80 rounded-md py-1 px-3 text-[10px] text-slate-400 flex items-center gap-1 font-sans">
-                    <Search className="w-2.5 h-2.5 text-slate-300" />
-                    <span>reposense.ai/analyzer</span>
-                  </div>
-                  <div className="w-10" />
-                </div>
+                    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                      <div className="flex-1 bg-white border border-slate-200/80 rounded-md py-1.5 px-3 text-[10px] text-slate-400 flex items-center gap-1.5 font-sans">
+                        <Search className="w-2.5 h-2.5 text-slate-300" />
+                        <span>reposense.ai/analyzer</span>
+                      </div>
+                      <div className="w-10" />
+                    </div>
 
                 {/* Browser App Mock Panel */}
                 <div className="p-6 flex-1 flex flex-col justify-center bg-slate-50/50">
@@ -358,7 +356,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                               disabled 
                               value={typingText}
                               className="w-full px-4 py-2.5 rounded-xl border border-[#EDE9FE] bg-white font-sans text-[11px] focus:ring-0 select-none text-slate-800 placeholder:text-slate-300"
-                              placeholder="https://github.com/..."
+                              placeholder="https://github.com/facebook/react"
                             />
                             <div className="absolute right-3 top-2.5 w-4 h-4">
                               <Github className="w-4 h-4 text-slate-300" />
@@ -554,7 +552,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         ref={containerRef} 
         id="how-it-works" 
         className="relative bg-[#F8F5F0] select-none text-slate-900"
-        style={{ height: "450vh" }}
+        style={{ height: "380vh" }}
       >
         {/* Sticky viewport content box */}
         <div className="sticky top-0 h-screen w-full flex flex-col justify-center overflow-hidden pt-20 pb-6 sm:pt-24 sm:pb-12 md:pb-16 px-4 sm:px-6 lg:px-8 bg-[#F8F5F0] z-10">
@@ -782,14 +780,12 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     animate={getScreenVariants(0, activeStoryStep)}
                     transition={{ type: "spring", stiffness: 95, damping: 18 }}
                   >
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                      <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block" />
+                    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                      <div className="flex-1 bg-white border border-slate-200/80 rounded-md py-1.5 px-3 text-[10px] text-slate-400 flex items-center gap-1.5 font-sans">
+                        <Search className="w-2.5 h-2.5 text-slate-300" />
+                        <span>reposense.ai/paste-url</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-mono">be749013/reposense-ai/paste-url</span>
-                      <div className="w-8" />
+                      <div className="w-10" />
                     </div>
                     
                     <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50/50 relative">
@@ -850,14 +846,12 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     animate={getScreenVariants(1, activeStoryStep)}
                     transition={{ type: "spring", stiffness: 95, damping: 18 }}
                   >
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                      <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block" />
+                    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                      <div className="flex-1 bg-white border border-slate-200/80 rounded-md py-1.5 px-3 text-[10px] text-slate-400 flex items-center gap-1.5 font-sans">
+                        <Search className="w-2.5 h-2.5 text-slate-300" />
+                        <span>reposense.ai/indexer</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-mono">be749013/reposense-ai/indexer</span>
-                      <div className="w-8" />
+                      <div className="w-10" />
                     </div>
                     
                     <div className="flex-1 flex flex-col items-center justify-center p-5 bg-slate-50/50 relative">
@@ -937,18 +931,16 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
                   {/* SCREEN 3: Dashboard breakdown report mockup block */}
                   <motion.div
-                    className="absolute inset-0 bg-white border border-slate-200 rounded-2xl shadow-[0_0_30px_rgba(109,40,217,0.15)] overflow-hidden flex flex-col pointer-events-none"
+                    className="absolute inset-0 bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden flex flex-col pointer-events-none"
                     animate={getScreenVariants(2, activeStoryStep)}
                     transition={{ type: "spring", stiffness: 95, damping: 18 }}
                   >
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                      <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block" />
+                    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                      <div className="flex-1 bg-white border border-slate-200/80 rounded-md py-1.5 px-3 text-[10px] text-slate-400 flex items-center gap-1.5 font-sans">
+                        <Search className="w-2.5 h-2.5 text-slate-300" />
+                        <span>reposense.ai/report</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-mono">be749013/reposense-ai/report</span>
-                      <div className="w-8" />
+                      <div className="w-10" />
                     </div>
                     
                     <div className="flex-1 p-3 bg-slate-50/80 flex flex-col gap-2 text-slate-600">
@@ -1020,14 +1012,12 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     animate={getScreenVariants(3, activeStoryStep)}
                     transition={{ type: "spring", stiffness: 95, damping: 18 }}
                   >
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                      <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block" />
+                    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                      <div className="flex-1 bg-white border border-slate-200/80 rounded-md py-1.5 px-3 text-[10px] text-slate-400 flex items-center gap-1.5 font-sans">
+                        <Search className="w-2.5 h-2.5 text-slate-300" />
+                        <span>reposense.ai/chat</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-mono">be749013/reposense-ai/chat</span>
-                      <div className="w-8" />
+                      <div className="w-10" />
                     </div>
                     
                     <div className="flex-1 p-3 bg-slate-50/80 flex flex-col justify-between text-slate-600">
@@ -1081,14 +1071,12 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     animate={getScreenVariants(4, activeStoryStep)}
                     transition={{ type: "spring", stiffness: 95, damping: 18 }}
                   >
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                      <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-400 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block" />
+                    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                      <div className="flex-1 bg-white border border-slate-200/80 rounded-md py-1.5 px-3 text-[10px] text-slate-400 flex items-center gap-1.5 font-sans">
+                        <Search className="w-2.5 h-2.5 text-slate-300" />
+                        <span>reposense.ai/launch</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-mono">be749013/reposense-ai/launch</span>
-                      <div className="w-8" />
+                      <div className="w-10" />
                     </div>
                     
                     <div className="flex-1 p-6 bg-gradient-to-b from-white to-purple-50/50 flex flex-col items-center justify-center text-slate-700 relative overflow-hidden text-center">

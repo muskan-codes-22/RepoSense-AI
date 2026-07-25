@@ -53,11 +53,21 @@ import { supabase } from "../lib/supabase";
 import OnboardingTooltip from "./OnboardingTooltip";
 import CopilotChat from "./CopilotChat";
 
+// Strips markdown formatting and HTML tags from API text fields to render uniform plain text.
+// Prevents visual artifacts like unintentional bold highlights (e.g. "<strong>Python</strong>" in descriptions).
 function stripMarkdown(text: string): string {
   return text
     .replace(/\*\*(.*?)\*\*/g, "$1")
     .replace(/`(.*?)`/g, "$1")
     .replace(/^#{1,6}\s+/gm, "")
+    .replace(/<\/?strong>/gi, "")
+    .replace(/<\/?b>/gi, "")
+    .replace(/<\/?em>/gi, "")
+    .replace(/<\/?i>/gi, "")
+    .replace(/<\/?code>/gi, "")
+    .replace(/<\/?pre>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?a[^>]*>/gi, "")
     .trim();
 }
 
@@ -151,39 +161,18 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
     return false;
   });
 
-  const activeScore = activeReport?.healthScore !== undefined
-    ? activeReport.healthScore
-    : (activeReport 
-        ? (((activeReport.owner + activeReport.repo).split("").reduce((acc, char: string) => acc + char.charCodeAt(0), 0) % 25) + 70)
-        : 84);
+  const activeScore = activeReport?.healthScore ?? null;
+  const healthScoreSource = activeReport?.healthScoreSource ?? "ai";
 
   const activeMetrics = activeReport?.healthMetrics
     ? [
-        { name: "Documentation", score: `${activeReport.healthMetrics.documentation}%` },
-        { name: "Architecture", score: `${activeReport.healthMetrics.architecture}%` },
-        { name: "Code Quality", score: `${activeReport.healthMetrics.codeQuality}%` },
-        { name: "Maintainability", score: `${activeReport.healthMetrics.maintainability}%` },
-        { name: "Scalability", score: `${activeReport.healthMetrics.scalability}%` }
+        { name: "Documentation", score: activeReport.healthMetrics.documentation },
+        { name: "Architecture", score: activeReport.healthMetrics.architecture },
+        { name: "Code Quality", score: activeReport.healthMetrics.codeQuality },
+        { name: "Maintainability", score: activeReport.healthMetrics.maintainability },
+        { name: "Scalability", score: activeReport.healthMetrics.scalability }
       ]
-    : (activeReport
-        ? (() => {
-            const hash = (activeReport.owner + activeReport.repo).split("").reduce((acc, char: string) => acc + char.charCodeAt(0), 0);
-            return [
-              { name: "Documentation", score: `${65 + ((hash * 3) % 31)}%` },
-              { name: "Architecture", score: `${65 + ((hash * 7) % 31)}%` },
-              { name: "Code Quality", score: `${65 + ((hash * 11) % 31)}%` },
-              { name: "Maintainability", score: `${65 + ((hash * 13) % 31)}%` },
-              { name: "Scalability", score: `${65 + ((hash * 17) % 31)}%` }
-            ];
-          })()
-        : [
-            { name: "Documentation", score: "88%" },
-            { name: "Architecture", score: "82%" },
-            { name: "Code Quality", score: "85%" },
-            { name: "Maintainability", score: "80%" },
-            { name: "Scalability", score: "86%" }
-          ]
-      );
+    : null;
 
 
   // Load history on mount (supporting local cache + Cloud Supabase backups)
@@ -858,15 +847,6 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                     >
                       <Star className="w-5 h-5 fill-current" />
                     </button>
-                    <button 
-                      onClick={() => {
-                        setActiveReport(null);
-                        setRepoUrl("");
-                      }}
-                      className="px-4 py-2 bg-white border border-[#EDE9FE] shadow-sm rounded-xl text-xs font-semibold text-[#7C3AED] hover:bg-purple-50/50 hover:border-purple-200 transition-all self-start sm:self-center cursor-pointer font-sans"
-                    >
-                      Analyze Another
-                    </button>
                   </div>
                 </div>
               )}
@@ -990,7 +970,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     
                     {/* LEFTSIDE: REPOSITORY HERO SECTION CARD (7 Cols) */}
-                    <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-[#EDE9FE] shadow-sm flex flex-col justify-between space-y-6 relative overflow-hidden bg-gradient-to-br from-white to-[#F9FAFB]">
+                    <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-[#EDE9FE] shadow-sm flex flex-col gap-6 relative overflow-hidden bg-gradient-to-br from-white to-[#F9FAFB]">
                       {/* Ambient light purple top-right accent */}
                       <div className="absolute top-0 right-0 w-32 h-32 bg-[#FAF5FF] rounded-full blur-2xl opacity-60 pointer-events-none" />
                       
@@ -1023,7 +1003,16 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
 
                       {/* Technology Badges beautifully displayed */}
                       <div className="space-y-3">
-                        <h5 className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Primary Tech Stack Badges</h5>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <h5 className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Primary Tech Stack Badges</h5>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[9px] font-semibold text-slate-400">
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-500" />Language</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" />Framework</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Database</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Tooling</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-400" />Library</span>
+                          </div>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {[
                             ...(activeReport.techStack?.languages || []).map(name => ({ name, color: "bg-purple-100 text-[#7C3AED]" })),
@@ -1076,81 +1065,105 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                       
                       <div className="text-center">
                         <h3 className="font-display font-extrabold text-slate-900 text-sm uppercase tracking-wider">Repository Health Score</h3>
-                        <p className="text-xs text-slate-450 mt-0.5 font-medium">Real-time AI architectural evaluation metrics</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5 font-medium italic">Holistic AI assessment — not a simple average of the metrics below</p>
                       </div>
 
-                      {/* Animated circular progress components (As requested!) */}
-                      <div className="flex justify-center items-center relative py-2">
-                        <div className="relative w-32 h-32 flex items-center justify-center">
-                          {/* Inner Circle Glow */}
-                          <div className="absolute inset-0 bg-purple-50 rounded-full blur-xl scale-95 opacity-50" />
-                          
-                          {/* SVG Outer Ring */}
-                          <svg className="w-full h-full transform -rotate-90 overflow-visible">
-                            <circle 
-                              cx="64" 
-                              cy="64" 
-                              r="52" 
-                              className="stroke-slate-100" 
-                              strokeWidth="8" 
-                              fill="transparent" 
-                            />
-                            <motion.circle 
-                              cx="64" 
-                              cy="64" 
-                              r="52" 
-                              className="stroke-url(#purpleGradient) stroke-[#7C3AED]" 
-                              strokeWidth="8" 
-                              fill="transparent" 
-                              strokeDasharray="326"
-                              initial={{ strokeDashoffset: 326 }}
-                              animate={{ strokeDashoffset: 326 - (326 * activeScore) / 100 }}
-                              transition={{ duration: 1.5, ease: "easeOut" }}
-                              strokeLinecap="round"
-                            />
-                            
-                            {/* Gradient definition */}
-                            <defs>
-                              <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#7C3AED" />
-                                <stop offset="100%" stopColor="#A78BFA" />
-                              </linearGradient>
-                            </defs>
-                          </svg>
-
-                          {/* Inner Score text annotation */}
-                          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                            <motion.span 
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="text-3xl font-black font-display text-slate-900 leading-none"
-                            >
-                              {activeScore}
-                            </motion.span>
-                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1">/ 100</span>
+                      {activeScore === null ? (
+                        /* Empty state: health score unavailable */
+                        <div className="flex flex-col items-center justify-center py-8 space-y-3 text-center">
+                          <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center">
+                            <ShieldCheck className="w-8 h-8 text-slate-300" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-slate-500">Health score unavailable</p>
+                            <p className="text-xs text-slate-400 max-w-[220px]">The AI could not generate health metrics for this analysis.</p>
                           </div>
                         </div>
-                      </div>
-
-                      {/* Miniature progress bar benchmark definitions (As requested!) */}
-                      <div className="w-full space-y-2 font-sans text-xs">
-                        {activeMetrics.map((m, idx) => (
-                          <div key={idx} className="space-y-1">
-                            <div className="flex justify-between items-center text-[11px] text-slate-600 font-semibold leading-none">
-                              <span>{m.name}</span>
-                              <span className="text-purple-600 font-bold">{m.score}</span>
+                      ) : (
+                        <>
+                          {/* Fallback estimate badge */}
+                          {healthScoreSource !== "ai" && (
+                            <div className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-700 font-semibold text-center leading-snug">
+                              ⚠ Estimated — limited data available for full analysis
                             </div>
-                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/40">
-                              <motion.div 
-                                className="h-full bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] rounded-full"
-                                initial={{ width: 0 }}
-                                animate={{ width: m.score }}
-                                transition={{ duration: 1, delay: idx * 0.1 }}
-                              />
+                          )}
+
+                          {/* Animated circular progress components */}
+                          <div className="flex justify-center items-center relative py-2">
+                            <div className="relative w-32 h-32 flex items-center justify-center">
+                              {/* Inner Circle Glow */}
+                              <div className="absolute inset-0 bg-purple-50 rounded-full blur-xl scale-95 opacity-50" />
+                              
+                              {/* SVG Outer Ring */}
+                              <svg className="w-full h-full transform -rotate-90 overflow-visible">
+                                <circle 
+                                  cx="64" 
+                                  cy="64" 
+                                  r="52" 
+                                  className="stroke-slate-100" 
+                                  strokeWidth="8" 
+                                  fill="transparent" 
+                                />
+                                <motion.circle 
+                                  cx="64" 
+                                  cy="64" 
+                                  r="52" 
+                                  className="stroke-[#7C3AED]" 
+                                  strokeWidth="8" 
+                                  fill="transparent" 
+                                  strokeDasharray="326"
+                                  initial={{ strokeDashoffset: 326 }}
+                                  animate={{ strokeDashoffset: 326 - (326 * activeScore) / 100 }}
+                                  transition={{ duration: 1.5, ease: "easeOut" }}
+                                  strokeLinecap="round"
+                                />
+                                
+                                {/* Gradient definition */}
+                                <defs>
+                                  <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#7C3AED" />
+                                    <stop offset="100%" stopColor="#A78BFA" />
+                                  </linearGradient>
+                                </defs>
+                              </svg>
+
+                              {/* Inner Score text annotation */}
+                              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                <motion.span 
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  className="text-3xl font-black font-display text-slate-900 leading-none"
+                                >
+                                  {activeScore}
+                                </motion.span>
+                                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1">/ 100</span>
+                              </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
+
+                          {/* Miniature progress bar benchmark definitions */}
+                          {activeMetrics && (
+                            <div className="w-full space-y-2 font-sans text-xs">
+                              {activeMetrics.map((m, idx) => (
+                                <div key={idx} className="space-y-1">
+                                  <div className="flex justify-between items-center text-[11px] text-slate-600 font-semibold leading-none">
+                                    <span>{m.name}</span>
+                                    <span className="text-purple-600 font-bold">{m.score}%</span>
+                                  </div>
+                                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/40">
+                                    <motion.div 
+                                      className="h-full bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] rounded-full"
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${m.score}%` }}
+                                      transition={{ duration: 1, delay: idx * 0.1 }}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
 
                     </div>
 

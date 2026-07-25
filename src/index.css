@@ -74,6 +74,15 @@ html {
   animation: float 35s infinite linear reverse;
 }
 
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 8s linear infinite;
+}
+
 /* Pulsing purple aura effect */
 .purple-glow {
   box-shadow: 0 0 40px -5px rgba(124, 58, 237, 0.15);

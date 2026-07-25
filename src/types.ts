@@ -69,6 +69,7 @@ export interface AnalysisReport {
   analyzedAt: string;
   healthScore?: number;
   healthMetrics?: HealthMetrics;
+  healthScoreSource?: "ai" | "fallback_parse" | "fallback_api";
   repoType?: string;
   architectureConfident?: boolean;
 }

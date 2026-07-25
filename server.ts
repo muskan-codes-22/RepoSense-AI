@@ -221,6 +221,7 @@ app.post("/api/analyze", async (req, res) => {
   let readmeContent = "";
   let filesContext: Record<string, string> = {};
   let apiSuccess = false;
+  let usedApiFallback = false;
   let filePathsInRepo: string[] = [];
   let gitTree: any[] = [];
 
@@ -714,6 +715,7 @@ Analyze this codebase extensively. Generate a structured, professional architect
 Ensure all texts are short, punchy, and written in plain text without any markdown formatting. Do not use **bold**, backticks, or headers. Do not output any conversational prefixes. Return only the JSON.
 `;
   } else {
+    usedApiFallback = true;
     // Advanced dynamically mapped prediction projection fallback (No generic static React/Express/Supabase!)
     const projectedLanguages = repoNameLower.includes("python") || repoNameLower.includes("django") || repoNameLower.includes("flask") || repoNameLower.includes("ml") || repoNameLower.includes("ai")
       ? ["Python"]
@@ -1000,14 +1002,13 @@ Return only the JSON.
       openIssues: typeof parsedData.openIssues === "number" ? parsedData.openIssues : (repoMeta?.open_issues_count ?? 0),
       repoType: parsedData.repoType || "Software Project",
       architectureConfident: parsedData.architectureConfident ?? true,
-      healthScore: typeof parsedData.healthScore === "number" ? parsedData.healthScore : 50,
-      healthMetrics: parsedData.healthMetrics || {
-        documentation: 50,
-        architecture: 50,
-        codeQuality: 50,
-        maintainability: 50,
-        scalability: 50
-      },
+      healthScore: typeof parsedData.healthScore === "number" ? parsedData.healthScore : undefined,
+      healthMetrics: parsedData.healthMetrics || undefined,
+      healthScoreSource: (() => {
+        if (typeof parsedData.healthScore !== "number") return "fallback_parse";
+        if (usedApiFallback) return "fallback_api";
+        return "ai";
+      })(),
       summary: parsedData.summary || {
         projectOverview: parsedData.description || "Project representation.",
         purpose: "Repository audit.",
