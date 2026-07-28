@@ -190,7 +190,7 @@ export default function CopilotChat({ report, userId, onClose }: CopilotChatProp
         {messages.length === 0 && !isStreaming && (
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-600 text-xs text-center">
-              Ask anything about <span className="text-purple-400 font-medium">{report.repo}</span>
+              Ask anything about <span className="text-[#7A5C1E] font-medium">{report.repo}</span>
             </p>
           </div>
         )}
@@ -201,7 +201,7 @@ export default function CopilotChat({ report, userId, onClose }: CopilotChatProp
               <div className="flex justify-end">
                 <div
                   className="max-w-[80%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-[13px] text-white leading-relaxed"
-                  style={{ background: "rgba(124, 58, 237, 0.35)", border: "1px solid rgba(124, 58, 237, 0.3)" }}
+                  style={{ background: "rgba(27, 42, 107, 0.55)", border: "1px solid rgba(27, 42, 107, 0.4)" }}
                 >
                   {msg.content}
                 </div>
@@ -234,7 +234,7 @@ export default function CopilotChat({ report, userId, onClose }: CopilotChatProp
                 border: "1px solid rgba(75, 85, 99, 0.25)",
               }}
             >
-              {streamingText}<span className="animate-pulse text-purple-400">|</span>
+              {streamingText}<span className="animate-pulse text-[#F5EBD3]">|</span>
             </div>
           </div>
         )}
@@ -250,7 +250,7 @@ export default function CopilotChat({ report, userId, onClose }: CopilotChatProp
                 border: "1px solid rgba(75, 85, 99, 0.25)",
               }}
             >
-              <span className="animate-pulse text-purple-400">Thinking...</span>
+              <span className="animate-pulse text-[#F5EBD3]">Thinking...</span>
             </div>
           </div>
         )}
@@ -281,7 +281,7 @@ export default function CopilotChat({ report, userId, onClose }: CopilotChatProp
           <button
             onClick={sendMessage}
             disabled={!inputValue.trim() || isStreaming}
-            className="px-3 py-2.5 text-purple-400 hover:text-purple-300 disabled:text-gray-700 disabled:cursor-not-allowed transition-colors shrink-0"
+            className="px-3 py-2.5 text-[#F5EBD3] hover:text-white disabled:text-gray-700 disabled:cursor-not-allowed transition-colors shrink-0"
           >
             <Send className="w-4 h-4" />
           </button>

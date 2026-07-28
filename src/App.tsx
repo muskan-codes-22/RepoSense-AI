@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sparkles } from "lucide-react";
 import LandingPage from "./components/LandingPage";
 import Dashboard from "./components/Dashboard";
 import AuthPage from "./components/AuthPage";
@@ -198,34 +197,85 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-[#040815] flex flex-col items-center justify-center text-white z-50 overflow-hidden"
+            transition={{ duration: 0.4 }}
+            className="fixed inset-0 bg-[#0A0F2E] flex flex-col items-center justify-end text-white z-50 overflow-hidden"
           >
-            {/* Ambient cyber grid in backdrop to fit style */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#111827_1px,transparent_1px),linear-gradient(to_bottom,#111827_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-30" />
-            <div className="absolute bottom-[20%] right-[-10%] w-[300px] h-[300px] rounded-full bg-purple-600/10 blur-[80px] pointer-events-none" />
+            {/* Background image with slow zoom */}
+            <div className="absolute inset-0 animate-slow-zoom">
+              <img
+                src="/preparing-bg.jpg"
+                alt=""
+                className="w-full h-full object-cover"
+              />
+            </div>
 
-            <div className="relative flex flex-col items-center space-y-6 max-w-sm px-6 text-center select-none z-10">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6D28D9] to-[#8B5CF6] flex items-center justify-center text-white shadow-2xl shadow-purple-500/20 animate-bounce">
-                <Sparkles className="w-8 h-8 fill-white/10" />
-              </div>
-              
-              <div className="space-y-2">
-                <h3 className="font-display font-extrabold text-xl tracking-tight text-white">Preparing Your Workspace...</h3>
-                <p className="text-slate-400 text-xs leading-relaxed font-sans max-w-xs">
-                  Authenticating credentials, loading historical profiles, and configuring diagnostic analysis panels. See you inside!
-                </p>
-              </div>
+            {/* Dark gradient overlay for text readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0F2E] via-[#0A0F2E]/70 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0A0F2E]/40 via-transparent to-transparent" />
 
-              {/* Progress bar animated beautifully */}
-              <div className="w-48 h-1 bg-slate-800 rounded-full overflow-hidden relative">
-                <motion.div 
-                  className="absolute left-0 top-0 h-full bg-gradient-to-r from-[#6D28D9] via-[#7C3AED] to-[#8B5CF6]"
-                  initial={{ width: "0%" }}
-                  animate={{ width: "100%" }}
-                  transition={{ duration: 1.8, ease: "easeInOut" }}
-                />
-              </div>
+            {/* Content at bottom */}
+            <div className="relative z-10 flex flex-col items-center pb-20 px-6 text-center select-none w-full max-w-lg">
+              {/* Animated heading with glow */}
+              <motion.h2
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
+                className="font-display font-extrabold text-3xl sm:text-4xl tracking-tight text-white animate-text-glow mb-3"
+              >
+                Preparing Your Workspace
+                <span className="inline-flex w-12 text-left">
+                  <span className="animate-[loadDot_1.4s_ease-in-out_0s_infinite]">.</span>
+                  <span className="animate-[loadDot_1.4s_ease-in-out_0.2s_infinite]">.</span>
+                  <span className="animate-[loadDot_1.4s_ease-in-out_0.4s_infinite]">.</span>
+                </span>
+              </motion.h2>
+
+              {/* Subtitle */}
+              <motion.p
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.6, ease: "easeOut" }}
+                className="text-slate-300/80 text-sm leading-relaxed font-sans max-w-sm mb-8"
+              >
+                Authenticating credentials, loading profiles, and configuring analysis panels.
+              </motion.p>
+
+              {/* Progress bar */}
+              <motion.div
+                initial={{ opacity: 0, scaleX: 0.8 }}
+                animate={{ opacity: 1, scaleX: 1 }}
+                transition={{ delay: 0.9, duration: 0.5 }}
+                className="w-64 sm:w-80"
+              >
+                <div className="h-[3px] bg-white/10 rounded-full overflow-hidden relative">
+                  <motion.div
+                    className="absolute left-0 top-0 h-full rounded-full"
+                    style={{
+                      background: "linear-gradient(90deg, transparent, rgba(27,42,107,0.8), rgba(46,63,143,1), rgba(27,42,107,0.8), transparent)",
+                      backgroundSize: "200% 100%",
+                    }}
+                    initial={{ width: "0%" }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 1.8, ease: "easeInOut" }}
+                  />
+                </div>
+                {/* Shimmer text */}
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1.2, duration: 0.4 }}
+                  className="mt-3 text-[11px] text-slate-500 font-mono tracking-widest uppercase animate-shimmer"
+                  style={{
+                    backgroundImage: "linear-gradient(90deg, #6B6F80 0%, #2E3F8F 50%, #6B6F80 100%)",
+                    backgroundClip: "text",
+                    WebkitBackgroundClip: "text",
+                    color: "transparent",
+                    backgroundSize: "200% auto",
+                  }}
+                >
+                  Loading
+                </motion.p>
+              </motion.div>
             </div>
           </motion.div>
         )}

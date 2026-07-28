@@ -6,7 +6,7 @@ import {
   FolderSearch, 
   Settings, 
   CircleHelp, 
-  Sparkles, 
+  GitBranch, 
   Search, 
   Github, 
   Star, 
@@ -46,12 +46,14 @@ import {
   TrendingUp,
   Award,
   BookMarked,
-  Brain
+  Brain,
+  Sparkles
 } from "lucide-react";
 import { AnalysisReport } from "../types";
 import { supabase } from "../lib/supabase";
 import OnboardingTooltip from "./OnboardingTooltip";
 import CopilotChat from "./CopilotChat";
+import ErrorBoundary from "./ErrorBoundary";
 
 // Strips markdown formatting and HTML tags from API text fields to render uniform plain text.
 // Prevents visual artifacts like unintentional bold highlights (e.g. "<strong>Python</strong>" in descriptions).
@@ -206,17 +208,33 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
 
             if (!mainErr && mainData && mainData.length > 0) {
               records = mainData.map(item => {
-                const report = typeof item.analysis_result === "string" 
-                  ? JSON.parse(item.analysis_result) 
-                  : item.analysis_result;
+                let report: any = null;
+                try {
+                  report = typeof item.analysis_result === "string" 
+                    ? JSON.parse(item.analysis_result) 
+                    : item.analysis_result;
+                } catch { return null; }
+                if (!report || typeof report !== "object") return null;
                 return {
                   ...report,
-                  id: item.id || report.id,
-                  url: item.repository_url || report.url,
-                  name: item.repository_name || report.name,
-                  analyzedAt: item.created_at || report.analyzedAt,
+                  id: item.id || report.id || `report_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                  owner: report.owner || (item.repository_name || "").split("/")[0] || "",
+                  repo: report.repo || (item.repository_name || "").split("/")[1] || "",
+                  url: item.repository_url || report.url || "",
+                  name: item.repository_name || report.name || "",
+                  description: report.description || "",
+                  stars: typeof report.stars === "number" ? report.stars : 0,
+                  forks: typeof report.forks === "number" ? report.forks : 0,
+                  openIssues: typeof report.openIssues === "number" ? report.openIssues : 0,
+                  summary: report.summary && typeof report.summary === "object" ? report.summary : { projectOverview: "", purpose: "", mainFunctionality: [] },
+                  techStack: report.techStack && typeof report.techStack === "object" ? report.techStack : { languages: [], frameworks: [], libraries: [], databases: [], tools: [] },
+                  projectStructure: report.projectStructure && typeof report.projectStructure === "object" ? report.projectStructure : { tree: "", explanation: "" },
+                  installation: report.installation && typeof report.installation === "object" ? report.installation : { prerequisites: [], steps: [] },
+                  aiInsights: report.aiInsights && typeof report.aiInsights === "object" ? report.aiInsights : { strengths: [], suggestions: [], architectureExplanation: "" },
+                  stats: report.stats && typeof report.stats === "object" ? report.stats : { filesAnalyzed: 0, technologiesCount: 0, estimatedSizeKb: 0, complexityScore: "Medium" },
+                  analyzedAt: item.created_at || report.analyzedAt || new Date().toISOString(),
                 };
-              });
+              }).filter(Boolean);
             } else {
               useFallbackTable = true;
             }
@@ -231,24 +249,36 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
               .eq("user_id", session.user.id);
 
             if (!error && data && data.length > 0) {
-              records = data.map(item => ({
-                id: item.id,
-                owner: item.owner || "",
-                repo: item.repo || "",
-                url: item.url || "",
-                name: item.name || "",
-                description: item.description || "",
-                stars: item.stars || 0,
-                forks: item.forks || 0,
-                openIssues: item.open_issues || item.openIssues || 0,
-                summary: item.summary || { projectOverview: "", purpose: "", mainFunctionality: [] },
-                techStack: item.tech_stack || item.techStack || { languages: [], frameworks: [], libraries: [], databases: [], tools: [] },
-                projectStructure: item.project_structure || item.projectStructure || { tree: "", explanation: "" },
-                installation: item.installation || { prerequisites: [], steps: [] },
-                aiInsights: item.ai_insights || item.aiInsights || { strengths: [], suggestions: [], architectureExplanation: "" },
-                stats: item.stats || { filesAnalyzed: 0, technologiesCount: 0, estimatedSizeKb: 0, complexityScore: "Medium" },
-                analyzedAt: item.analyzed_at || item.analyzedAt || new Date().toISOString(),
-              }));
+              records = data.map(item => {
+                const safeObj = (val: any, fallback: any) => {
+                  if (val && typeof val === "object" && !Array.isArray(val)) return val;
+                  if (typeof val === "string") { try { const p = JSON.parse(val); if (p && typeof p === "object") return p; } catch {} }
+                  return fallback;
+                };
+                const safeArr = (val: any, fallback: any[]) => {
+                  if (Array.isArray(val)) return val;
+                  if (typeof val === "string") { try { const p = JSON.parse(val); if (Array.isArray(p)) return p; } catch {} }
+                  return fallback;
+                };
+                return {
+                  id: item.id,
+                  owner: item.owner || "",
+                  repo: item.repo || "",
+                  url: item.url || "",
+                  name: item.name || "",
+                  description: item.description || "",
+                  stars: item.stars || 0,
+                  forks: item.forks || 0,
+                  openIssues: item.open_issues || item.openIssues || 0,
+                  summary: safeObj(item.summary, { projectOverview: "", purpose: "", mainFunctionality: [] }),
+                  techStack: safeObj(item.tech_stack || item.techStack, { languages: [], frameworks: [], libraries: [], databases: [], tools: [] }),
+                  projectStructure: safeObj(item.project_structure || item.projectStructure, { tree: "", explanation: "" }),
+                  installation: safeObj(item.installation, { prerequisites: [], steps: [] }),
+                  aiInsights: safeObj(item.ai_insights || item.aiInsights, { strengths: [], suggestions: [], architectureExplanation: "" }),
+                  stats: safeObj(item.stats, { filesAnalyzed: 0, technologiesCount: 0, estimatedSizeKb: 0, complexityScore: "Medium" }),
+                  analyzedAt: item.analyzed_at || item.analyzedAt || new Date().toISOString(),
+                };
+              });
             }
           }
 
@@ -265,7 +295,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
     };
 
     fetchHistory();
-  }, []);
+  }, [user?.id]);
 
   // Sync initialUrl
   useEffect(() => {
@@ -608,20 +638,20 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
   ];
 
   return (
-    <div id="dashboard-container" className="min-h-screen bg-[#FAF9FF] text-slate-800 font-sans flex flex-col md:flex-row relative">
+    <div id="dashboard-container" className="min-h-screen bg-[#F5EBD3]/30 text-slate-800 font-sans flex flex-col md:flex-row relative">
       
       {/* MOBILE HEADER BAR */}
-      <header id="mobile-dashboard-header" className="md:hidden w-full bg-white border-b border-[#EDE9FE] px-4 py-3 h-14 flex items-center justify-between sticky top-0 z-40 shadow-sm">
+      <header id="mobile-dashboard-header" className="md:hidden w-full bg-white border-b border-[#E8EAF4] px-4 py-3 h-14 flex items-center justify-between sticky top-0 z-40 shadow-sm">
         <div className="flex items-center gap-2 cursor-pointer" onClick={handleLogoClick}>
           <img src="/logo.svg" alt="RepoSense AI" className="w-8 h-8 rounded-lg shadow-md" />
-          <span className="font-extrabold text-sm tracking-tight bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] bg-clip-text text-transparent font-display">
+          <span className="font-extrabold text-sm tracking-tight bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] bg-clip-text text-transparent font-display">
             REPOSENSE AI
           </span>
         </div>
         <button 
           data-tutorial="sidebar-toggle"
           onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-          className="p-1.5 rounded-lg border border-purple-100 text-purple-700 focus:outline-none hover:bg-purple-50"
+          className="p-1.5 rounded-lg border border-blue-100 text-blue-700 focus:outline-none hover:bg-blue-50"
         >
           {isMobileSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
@@ -630,22 +660,22 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
       {/* LEFT SIDEBAR (Premium SaaS Sidebar) */}
       <aside 
         id="dashboard-sidebar"
-        className={`w-full md:w-80 bg-white border-r border-[#EDE9FE] shrink-0 h-[calc(100vh-3.5rem)] md:h-screen overflow-y-auto fixed md:sticky top-14 md:top-0 z-30 transition-all duration-300 md:translate-x-0 shadow-sm ${
+        className={`w-full md:w-80 bg-white border-r border-[#E8EAF4] shrink-0 h-[calc(100vh-3.5rem)] md:h-screen overflow-y-auto fixed md:sticky top-14 md:top-0 z-30 transition-all duration-300 md:translate-x-0 shadow-sm ${
           isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Sidebar Logo */}
-        <div className="p-6 border-b border-purple-50 hidden md:flex items-center justify-between">
+        <div className="p-6 border-b border-blue-50 hidden md:flex items-center justify-between">
           <div className="flex items-center gap-2.5 cursor-pointer" onClick={handleLogoClick}>
-            <img src="/logo.svg" alt="RepoSense AI" className="w-9 h-9 rounded-xl shadow-lg shadow-purple-100" />
-            <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] bg-clip-text text-transparent font-display">
+            <img src="/logo.svg" alt="RepoSense AI" className="w-9 h-9 rounded-xl shadow-lg shadow-blue-100" />
+            <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] bg-clip-text text-transparent font-display">
               REPOSENSE AI
             </span>
           </div>
         </div>
 
         {/* User Workspace Profiles Info */}
-        <div className="p-5 border-b border-purple-50 bg-gradient-to-br from-purple-50/20 to-white">
+        <div className="p-5 border-b border-blue-50 bg-gradient-to-br from-blue-50/20 to-white">
           <div className="flex items-center gap-3">
             <div className="relative">
               {user?.avatarUrl ? (
@@ -653,10 +683,10 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                   src={user.avatarUrl} 
                   alt={`${user.fullName} Profile`}
                   referrerPolicy="no-referrer"
-                  className="w-11 h-11 rounded-xl object-cover border-2 border-[#A78BFA] shadow-sm bg-purple-100"
+                  className="w-11 h-11 rounded-xl object-cover border-2 border-[#2E3F8F] shadow-sm bg-blue-100"
                 />
               ) : (
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#1B2A6B] to-[#2E3F8F] flex items-center justify-center text-white font-bold text-lg shadow-sm">
                   {user?.fullName?.charAt(0)?.toUpperCase() || "?"}
                 </div>
               )}
@@ -686,16 +716,16 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                 }}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all ${
                   isActive 
-                    ? "bg-[#F5F3FF] text-[#7C3AED] shadow-sm shadow-purple-50" 
-                    : "text-slate-500 hover:text-slate-800 hover:bg-[#FAF9FF]"
+                    ? "bg-[#F5EBD3] text-[#7A5C1E] shadow-sm shadow-[#E8D9B8]" 
+                    : "text-slate-500 hover:text-slate-800 hover:bg-[#F5EBD3]/20"
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`w-4.5 h-4.5 ${isActive ? "text-[#7C3AED]" : "text-slate-400"}`} />
+                  <Icon className={`w-4.5 h-4.5 ${isActive ? "text-[#7A5C1E]" : "text-slate-400"}`} />
                   <span>{item.label}</span>
                 </div>
                 {item.count !== undefined && item.count > 0 && (
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${isActive ? "bg-purple-100 text-[#7C3AED]" : "bg-slate-100 text-slate-500"}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${isActive ? "bg-[#E8D9B8] text-[#7A5C1E]" : "bg-slate-100 text-slate-500"}`}>
                     {item.count}
                   </span>
                 )}
@@ -712,9 +742,9 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                 setRepoUrl("");
                 setIsMobileSidebarOpen(false);
               }}
-              className="w-full py-2.5 px-3.5 bg-gradient-to-r from-[#7C3AED] to-[#9061F9] text-white font-bold text-xs rounded-xl shadow-md shadow-purple-100 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 px-3.5 bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] text-white font-bold text-xs rounded-xl shadow-md shadow-blue-100 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center gap-1.5"
             >
-              <Sparkles className="w-3.5 h-3.5 fill-white/20" />
+              <GitBranch className="w-3.5 h-3.5 fill-white/20" />
               <span>Analyze New Repository</span>
             </button>
           </div>
@@ -749,7 +779,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                       setActiveTab(SidebarTab.DASHBOARD);
                       setIsMobileSidebarOpen(false);
                     }}
-                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-purple-100 cursor-pointer transition-all duration-250 truncate"
+                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-[#E8D9B8] cursor-pointer transition-all duration-250 truncate"
                   >
                     <img 
                       src={`https://github.com/${owner}.png`} 
@@ -772,7 +802,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
         )}
 
         {/* Back Link bottom element replaced with Logout row */}
-        <div className="p-4 border-t border-[#F3E8FF] bg-[#FAF9FF]/40">
+        <div className="p-4 border-t border-[#E8EAF4] bg-[#F5EBD3]/30/40">
           <button 
             onClick={onLogout}
             className="w-full py-2.5 px-3 text-xs font-bold text-red-600 hover:text-white hover:bg-red-600 bg-red-50/50 border border-red-200 rounded-xl text-center shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
@@ -798,7 +828,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
               {/* Header section (Conditionally smaller if report exists) */}
               {!activeReport && !isAnalyzing && (
                 <div className="text-center max-w-xl mx-auto space-y-3.5 py-6">
-                  <div className="w-20 h-20 rounded-3xl bg-[#F5F3FF] text-[#7C3AED] flex items-center justify-center mx-auto shadow-md shadow-purple-100">
+                  <div className="w-20 h-20 rounded-3xl bg-[#F5EBD3] text-[#7A5C1E] flex items-center justify-center mx-auto shadow-md shadow-[#E8D9B8]">
                     <Github className="w-10 h-10 animate-bounce" />
                   </div>
                   <h3 className="font-display font-extrabold text-3xl text-slate-900 tracking-tight">
@@ -811,7 +841,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
               )}
 
               {activeReport && !isAnalyzing && (
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 border-b border-[#EDE9FE] pb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 border-b border-[#E8EAF4] pb-6">
                   <div className="flex items-center gap-4">
                     {/* GitHub Owner Avatar beside title (As requested!) */}
                     <img 
@@ -821,7 +851,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                         (e.target as HTMLImageElement).src = "https://github.com/github.png";
                       }}
                       referrerPolicy="no-referrer"
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-purple-100 shadow-md bg-white shrink-0"
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-blue-100 shadow-md bg-white shrink-0"
                     />
                     <div>
                       {/* Increased Typography Hierarchy (Title 36px font-weight 700-800) */}
@@ -856,7 +886,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                 <div className="max-w-2xl mx-auto py-2">
                   <div className="space-y-4">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block text-center sm:text-left">GitHub Repository Address</label>
-                    <div className="relative flex flex-col sm:flex-row gap-2 sm:gap-0 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/50">
+                    <div className="relative flex flex-col sm:flex-row gap-2 sm:gap-0 p-1.5 bg-[#F5EBD3]/20 border border-[#E8D9B8] rounded-2xl shadow-xl shadow-[#E8D9B8]/50">
                       <div className="absolute inset-y-0 left-6 hidden sm:flex items-center pointer-events-none">
                         <Github className="w-5 h-5 text-slate-400" />
                       </div>
@@ -878,7 +908,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                         data-tutorial="analyze-btn"
                         onClick={() => triggerAnalysis(repoUrl)}
                         disabled={isAnalyzing || !repoUrl.trim()}
-                        className="px-6 bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] text-white font-semibold rounded-xl shadow-lg shadow-purple-200 py-2.5 hover:scale-[1.02] transition-transform duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-sm"
+                        className="px-6 bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] text-white font-semibold rounded-xl shadow-lg shadow-blue-200 py-2.5 hover:scale-[1.02] transition-transform duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-sm"
                       >
                         {isAnalyzing ? (
                           <>
@@ -918,13 +948,13 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                   </div>
                   <div>
                     <h4 className="font-display font-extrabold text-[#111827] text-lg">RepoSense Engine Auditing...</h4>
-                    <p className="text-xs text-[#7C3AED] font-mono mt-0.5 uppercase tracking-widest font-bold truncate max-w-sm mx-auto">{repoUrl}</p>
+                    <p className="text-xs text-[#1B2A6B] font-mono mt-0.5 uppercase tracking-widest font-bold truncate max-w-sm mx-auto">{repoUrl}</p>
                   </div>
 
                   {/* Visual Progress Bar */}
                   <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
                     <div 
-                      className="bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] h-full rounded-full transition-all duration-350 ease-out"
+                      className="bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] h-full rounded-full transition-all duration-350 ease-out"
                       style={{ width: `${Math.min(((analysisStep + 1) / 6) * 100, 100)}%` }}
                     />
                   </div>
@@ -944,13 +974,13 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                         <div 
                           key={idx} 
                           className={`flex items-center gap-3 transition-colors duration-300 ${
-                            isDone ? "text-slate-650 font-medium" : isActive ? "text-[#7C3AED] font-extrabold" : "text-slate-350"
+                            isDone ? "text-slate-650 font-medium" : isActive ? "text-[#1B2A6B] font-extrabold" : "text-slate-350"
                           }`}
                         >
                           {isDone ? (
                             <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 fill-emerald-50 shrink-0" />
                           ) : isActive ? (
-                            <Loader2 className="w-4.5 h-4.5 animate-spin text-[#7C3AED] shrink-0" />
+                            <Loader2 className="w-4.5 h-4.5 animate-spin text-[#1B2A6B] shrink-0" />
                           ) : (
                             <span className="w-4.5 h-4.5 rounded-full border border-slate-200 block bg-slate-50 shrink-0" />
                           )}
@@ -964,19 +994,20 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
 
               {/* REPORT DISPLAY - PRESTIGE SaaS LAYOUT MAP */}
               {activeReport && !isAnalyzing && (
+                <ErrorBoundary key={activeReport.id}>
                 <div id="full-report-dashboard" className="space-y-8">
                   
                   {/* BENTO CONTAINER: HERO SECTION + HEALTH SCORE */}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     
                     {/* LEFTSIDE: REPOSITORY HERO SECTION CARD (7 Cols) */}
-                    <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-[#EDE9FE] shadow-sm flex flex-col gap-6 relative overflow-hidden bg-gradient-to-br from-white to-[#F9FAFB]">
+                    <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-[#E8EAF4] shadow-sm flex flex-col gap-6 relative overflow-hidden bg-gradient-to-br from-white to-[#F9FAFB]">
                       {/* Ambient light purple top-right accent */}
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-[#FAF5FF] rounded-full blur-2xl opacity-60 pointer-events-none" />
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-[#F5EBD3] rounded-full blur-2xl opacity-60 pointer-events-none" />
                       
                       <div className="space-y-4">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-[10px] font-extrabold uppercase tracking-widest rounded-md border border-purple-100">
+                          <span className="px-2.5 py-1 bg-[#F5EBD3] text-[#7A5C1E] text-[10px] font-extrabold uppercase tracking-widest rounded-md border border-[#E8D9B8]">
                             {activeReport.owner || "git-owner"}
                           </span>
                           <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold uppercase tracking-widest rounded-md border border-emerald-100 flex items-center gap-1.5">
@@ -1006,7 +1037,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                           <h5 className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Primary Tech Stack Badges</h5>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[9px] font-semibold text-slate-400">
-                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-500" />Language</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" />Language</span>
                             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" />Framework</span>
                             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Database</span>
                             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Tooling</span>
@@ -1015,7 +1046,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {[
-                            ...(activeReport.techStack?.languages || []).map(name => ({ name, color: "bg-purple-100 text-[#7C3AED]" })),
+                            ...(activeReport.techStack?.languages || []).map(name => ({ name, color: "bg-[#F5EBD3] text-[#7A5C1E] border-[#E8D9B8]" })),
                             ...(activeReport.techStack?.frameworks || []).map(name => ({ name, color: "bg-blue-100 text-blue-700" })),
                             ...(activeReport.techStack?.databases || []).map(name => ({ name, color: "bg-emerald-100 text-emerald-800" })),
                             ...(activeReport.techStack?.tools || []).map(name => ({ name, color: "bg-amber-100 text-amber-800" })),
@@ -1061,7 +1092,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                     </div>
 
                     {/* RIGHTSIDE: REPOSITORY HEALTH SCORE COMPONENT (5 Cols) */}
-                    <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-3xl border border-[#EDE9FE] shadow-sm flex flex-col items-center justify-center space-y-6">
+                    <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-3xl border border-[#E8EAF4] shadow-sm flex flex-col items-center justify-center space-y-6">
                       
                       <div className="text-center">
                         <h3 className="font-display font-extrabold text-slate-900 text-sm uppercase tracking-wider">Repository Health Score</h3>
@@ -1092,7 +1123,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                           <div className="flex justify-center items-center relative py-2">
                             <div className="relative w-32 h-32 flex items-center justify-center">
                               {/* Inner Circle Glow */}
-                              <div className="absolute inset-0 bg-purple-50 rounded-full blur-xl scale-95 opacity-50" />
+                              <div className="absolute inset-0 bg-blue-50 rounded-full blur-xl scale-95 opacity-50" />
                               
                               {/* SVG Outer Ring */}
                               <svg className="w-full h-full transform -rotate-90 overflow-visible">
@@ -1108,7 +1139,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                                   cx="64" 
                                   cy="64" 
                                   r="52" 
-                                  className="stroke-[#7C3AED]" 
+                                  className="stroke-[#1B2A6B]" 
                                   strokeWidth="8" 
                                   fill="transparent" 
                                   strokeDasharray="326"
@@ -1121,8 +1152,8 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                                 {/* Gradient definition */}
                                 <defs>
                                   <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stopColor="#7C3AED" />
-                                    <stop offset="100%" stopColor="#A78BFA" />
+                                    <stop offset="0%" stopColor="#1B2A6B" />
+                                    <stop offset="100%" stopColor="#2E3F8F" />
                                   </linearGradient>
                                 </defs>
                               </svg>
@@ -1148,11 +1179,11 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                                 <div key={idx} className="space-y-1">
                                   <div className="flex justify-between items-center text-[11px] text-slate-600 font-semibold leading-none">
                                     <span>{m.name}</span>
-                                    <span className="text-purple-600 font-bold">{m.score}%</span>
+                                    <span className="text-blue-600 font-bold">{m.score}%</span>
                                   </div>
                                   <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/40">
                                     <motion.div 
-                                      className="h-full bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] rounded-full"
+                                      className="h-full bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] rounded-full"
                                       initial={{ width: 0 }}
                                       animate={{ width: `${m.score}%` }}
                                       transition={{ duration: 1, delay: idx * 0.1 }}
@@ -1173,11 +1204,11 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                   <motion.div 
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white p-6 sm:p-8 rounded-3xl border border-[#EDE9FE] shadow-sm space-y-6 overflow-hidden relative"
+                    className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E8EAF4] shadow-sm space-y-6 overflow-hidden relative"
                   >
                     <div>
                       <h3 className="font-display font-extrabold text-[#111827] text-lg flex items-center gap-2">
-                        <Compass className="w-5 h-5 text-[#7C3AED] animate-spin-slow" />
+                        <Compass className="w-5 h-5 text-[#1B2A6B] animate-spin-slow" />
                         <span>Interactive System Architecture Flow</span>
                       </h3>
                       <p className="text-xs text-slate-400 font-medium">Map representation of repository design vectors, execution streams, and AI pipelines</p>
@@ -1306,7 +1337,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                           tech: "Language",
                           desc: langDescriptions[lang] || defaultDesc,
                           icon: Code2,
-                          color: "border-[#7C3AED] text-[#7C3AED] bg-purple-50/50"
+                          color: "border-[#1B2A6B] text-[#1B2A6B] bg-blue-50/50"
                         });
                       });
 
@@ -1376,7 +1407,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                                 <motion.path 
                                   d="M 50,32 Q 220,5 340,32 T 620,32 T 910,32" 
                                   fill="none" 
-                                  stroke="#7C3AED" 
+                                  stroke="#1B2A6B" 
                                   strokeWidth="3" 
                                   strokeDasharray="8 12"
                                   animate={{ strokeDashoffset: -40 }}
@@ -1403,7 +1434,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                                     <span className="px-2 py-0.5 bg-slate-50 border border-slate-100 text-[9px] font-mono text-slate-450 rounded font-semibold">{node.tech}</span>
                                   </div>
                                   <p className="text-[11px] text-slate-450 leading-relaxed max-w-xs">{node.desc}</p>
-                                  <div className="md:hidden pt-2 text-[#7C3AED] font-bold">↓</div>
+                                  <div className="md:hidden pt-2 text-[#1B2A6B] font-bold">↓</div>
                                 </motion.div>
                               );
                             })}
@@ -1414,7 +1445,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                   </motion.div>
 
                   {/* NAV TABS FOR REPORT MODULES */}
-                  <div className="border-b border-[#EDE9FE] flex flex-wrap gap-1">
+                  <div className="border-b border-[#E8EAF4] flex flex-wrap gap-1">
                     {[
                       { id: AnalysisTab.SUMMARY, label: "Summary", icon: BookOpen },
                       { id: AnalysisTab.TECH_STACK, label: "Technology Stack", icon: Code2 },
@@ -1431,8 +1462,8 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                           onClick={() => setActiveAnalysisTab(tab.id)}
                           className={`flex items-center gap-2 px-4 py-3 border-b-2 text-[11px] sm:text-xs font-extrabold leading-none tracking-wide transition-all ${
                             isActive 
-                              ? "border-b-[#7C3AED] text-[#7C3AED] bg-purple-50/40 rounded-t-xl" 
-                              : "border-b-transparent text-slate-500 hover:text-slate-800 hover:bg-[#FAF9FF]"
+                              ? "border-b-[#7A5C1E] text-[#7A5C1E] bg-[#F5EBD3]/40 rounded-t-xl" 
+                              : "border-b-transparent text-slate-500 hover:text-slate-800 hover:bg-[#F5EBD3]/30"
                           }`}
                         >
                           <Icon className="w-3.5 h-3.5" />
@@ -1443,7 +1474,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                   </div>
 
                   {/* ACTIVE TAB PANEL VIEW */}
-                  <div className="bg-white border border-[#EDE9FE] rounded-3xl p-6 sm:p-8 shadow-sm min-h-[300px]">
+                  <div className="bg-white border border-[#E8EAF4] rounded-3xl p-6 sm:p-8 shadow-sm min-h-[300px]">
                     <AnimatePresence mode="wait">
                       
                       {/* Tab: Summary REDESIGNED (Structured inside four cards with Framer Motion, As requested!) */}
@@ -1463,7 +1494,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                               className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm space-y-4 flex flex-col justify-between"
                             >
                               <div className="space-y-2">
-                                <div className="w-10 h-10 rounded-xl bg-purple-50 text-[#7C3AED] flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-xl bg-[#F5EBD3] text-[#7A5C1E] flex items-center justify-center">
                                   <BookOpen className="w-5 h-5" />
                                 </div>
                                 <h4 className="font-display font-[800] text-slate-950 text-base">Project Overview</h4>
@@ -1502,7 +1533,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                                 <ul className="space-y-2 font-sans text-sm sm:text-[15px] text-slate-700">
                                   {activeReport.summary?.mainFunctionality?.map((func, i) => (
                                     <li key={i} className="flex items-start gap-2.5">
-                                      <span className="w-1.5 h-1.5 bg-[#7C3AED] rounded-full mt-2 shrink-0" />
+                                      <span className="w-1.5 h-1.5 bg-[#1B2A6B] rounded-full mt-2 shrink-0" />
                                       <span>{stripMarkdown(func)}</span>
                                     </li>
                                   )) || <p className="text-slate-400 font-sans">No primary capabilities reported.</p>}
@@ -1541,7 +1572,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                         >
                           <div>
                             <h4 className="font-display font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                              <Code2 className="w-5 h-5 text-[#7C3AED]" />
+                              <Code2 className="w-5 h-5 text-[#1B2A6B]" />
                               <span>Integrated Technologies</span>
                             </h4>
                             <p className="text-xs text-slate-400 mt-0.5">Categorized breakdown of discovered frameworks, languages, and runtime configurations</p>
@@ -1551,35 +1582,35 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                             
                             {/* Languages & Frameworks (Left Column) */}
                             <div className="space-y-6">
-                              <div className="bg-[#FAF9FF] p-5 rounded-2xl border border-purple-50 space-y-3.5">
+                              <div className="bg-[#F5EBD3]/30 p-5 rounded-2xl border border-blue-50 space-y-3.5">
                                 <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 leading-none">
-                                  <Code2 className="w-4 h-4 text-purple-600" />
+                                  <Code2 className="w-4 h-4 text-blue-600" />
                                   <span>Programming Languages</span>
                                 </h5>
                                 <div className="flex flex-wrap gap-2">
                                   {activeReport.techStack?.languages?.map((lang, idx) => (
-                                    <span key={idx} className="px-3 py-1.5 bg-white text-slate-800 border border-purple-100 text-xs font-bold rounded-xl shadow-sm hover:scale-[1.03] transition-transform">
+                                    <span key={idx} className="px-3 py-1.5 bg-white text-slate-800 border border-blue-100 text-xs font-bold rounded-xl shadow-sm hover:scale-[1.03] transition-transform">
                                       {lang}
                                     </span>
                                   )) || <span className="text-xs text-slate-400">None detected</span>}
                                 </div>
                               </div>
 
-                              <div className="bg-[#FAF9FF] p-5 rounded-2xl border border-purple-50 space-y-3.5">
+                              <div className="bg-[#F5EBD3]/30 p-5 rounded-2xl border border-blue-50 space-y-3.5">
                                 <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 leading-none">
-                                  <Layers className="w-4 h-4 text-blue-600" />
+                                <Layers className="w-4 h-4 text-[#7A5C1E]" />
                                   <span>Core Frameworks</span>
                                 </h5>
                                 <div className="flex flex-wrap gap-2">
                                   {activeReport.techStack?.frameworks?.map((fw, idx) => (
-                                    <span key={idx} className="px-3 py-1.5 bg-white text-[#7C3AED] border border-blue-100 text-xs font-bold rounded-xl shadow-sm hover:scale-[1.03] transition-transform">
+                                    <span key={idx} className="px-3 py-1.5 bg-white text-[#1B2A6B] border border-blue-100 text-xs font-bold rounded-xl shadow-sm hover:scale-[1.03] transition-transform">
                                       {fw}
                                     </span>
                                   )) || <span className="text-xs text-slate-400">None detected</span>}
                                 </div>
                               </div>
 
-                              <div className="bg-[#FAF9FF] p-5 rounded-2xl border border-purple-50 space-y-3.5">
+                              <div className="bg-[#F5EBD3]/30 p-5 rounded-2xl border border-blue-50 space-y-3.5">
                                 <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 leading-none">
                                   <Terminal className="w-4 h-4 text-amber-600" />
                                   <span>Compiler & Utilites</span>
@@ -1596,7 +1627,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
 
                             {/* Libraries & Databases (Right Column) */}
                             <div className="space-y-6">
-                              <div className="bg-[#FAF9FF] p-5 rounded-2xl border border-purple-50 space-y-3.5">
+                              <div className="bg-[#F5EBD3]/30 p-5 rounded-2xl border border-blue-50 space-y-3.5">
                                 <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 leading-none">
                                   <Compass className="w-4 h-4 text-emerald-600" />
                                   <span>Installed Libraries</span>
@@ -1610,7 +1641,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                                 </div>
                               </div>
 
-                              <div className="bg-[#FAF9FF] p-5 rounded-2xl border border-purple-50 space-y-3.5">
+                              <div className="bg-[#F5EBD3]/30 p-5 rounded-2xl border border-blue-50 space-y-3.5">
                                 <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 leading-none">
                                   <Database className="w-4 h-4 text-cyan-600" />
                                   <span>Databases & Storages</span>
@@ -1638,15 +1669,15 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                           exit={{ opacity: 0, x: -10 }}
                           className="space-y-6"
                         >
-                          <div className="flex justify-between items-center border-b border-purple-50 pb-3">
+                          <div className="flex justify-between items-center border-b border-blue-50 pb-3">
                             <div>
                               <h4 className="font-display font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                                <Layers className="w-5 h-5 text-[#7C3AED]" />
+                                <Layers className="w-5 h-5 text-[#1B2A6B]" />
                                 <span>Directory Layout Mapping</span>
                               </h4>
                               <p className="text-xs text-slate-450">High-fidelity schematic map representing the source directories</p>
                             </div>
-                            <span className="text-xs font-mono text-[#7C3AED] font-bold bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-100">{activeReport.repo} filetree map</span>
+                            <span className="text-xs font-mono text-[#1B2A6B] font-bold bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">{activeReport.repo} filetree map</span>
                           </div>
 
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1669,14 +1700,14 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                             </div>
 
                             {/* Project structure descriptions & folders metadata */}
-                            <div className="bg-[#FAF9FF] rounded-2xl p-6 border border-purple-50 space-y-4 flex flex-col justify-center">
+                            <div className="bg-[#F5EBD3]/30 rounded-2xl p-6 border border-blue-50 space-y-4 flex flex-col justify-center">
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-purple-100 text-[#7C3AED] flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-lg bg-[#F5EBD3] text-[#7A5C1E] flex items-center justify-center">
                                   <FolderOpen className="w-4 h-4" />
                                 </div>
                                 <h5 className="font-display font-bold text-slate-800 text-sm">Directory Boundaries & Logic</h5>
                               </div>
-                              <div className="text-sm sm:text-[15px] text-slate-705 leading-relaxed font-sans bg-white p-5 rounded-xl border border-slate-100 shadow-sm shadow-purple-50/10 leading-loose whitespace-pre-line">
+                              <div className="text-sm sm:text-[15px] text-slate-705 leading-relaxed font-sans bg-white p-5 rounded-xl border border-slate-100 shadow-sm shadow-blue-50/10 leading-loose whitespace-pre-line">
                                 {stripMarkdown(activeReport.projectStructure?.explanation || "No structure review metadata.")}
                               </div>
                             </div>
@@ -1695,7 +1726,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                         >
                           <div>
                             <h4 className="font-display font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                              <Terminal className="w-5 h-5 text-[#7C3AED]" />
+                              <Terminal className="w-5 h-5 text-[#1B2A6B]" />
                               <span>Local Installation Blueprint</span>
                             </h4>
                             <p className="text-xs text-slate-450 mt-0.5">Step-by-step developer scripts to run this repository locally</p>
@@ -1703,13 +1734,13 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                           
                           <div className="space-y-4">
                             {/* Prerequisites Box */}
-                            <div className="p-5 bg-[#FAF9FF] rounded-2xl border border-purple-50 flex items-start gap-3.5">
-                              <Info className="w-5 h-5 text-[#7C3AED] shrink-0 mt-0.5" />
+                            <div className="p-5 bg-[#F5EBD3]/30 rounded-2xl border border-blue-50 flex items-start gap-3.5">
+                              <Info className="w-5 h-5 text-[#1B2A6B] shrink-0 mt-0.5" />
                               <div className="space-y-2">
                                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">Preconditions & Development Tooling</span>
                                 <ul className="flex flex-wrap gap-2 pt-1">
                                   {activeReport.installation?.prerequisites?.map((prereq, idx) => (
-                                    <li key={idx} className="px-3 py-1 bg-white text-slate-700 rounded-lg border border-purple-100 text-[10px] font-mono font-semibold shadow-sm">
+                                    <li key={idx} className="px-3 py-1 bg-white text-slate-700 rounded-lg border border-blue-100 text-[10px] font-mono font-semibold shadow-sm">
                                       {prereq}
                                     </li>
                                   )) || <p className="text-[11px] text-slate-400">None detected.</p>}
@@ -1722,9 +1753,9 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                               {activeReport.installation?.steps?.map((step, idx) => {
                                 const isCopied = copiedStepIndex === idx;
                                 return (
-                                  <div key={idx} className="bg-white border border-slate-150 rounded-2xl p-5 shadow-sm hover:border-purple-200 transition-all duration-200">
+                                  <div key={idx} className="bg-white border border-slate-150 rounded-2xl p-5 shadow-sm hover:border-blue-200 transition-all duration-200">
                                     <div className="flex items-start gap-4">
-                                      <span className="w-7 h-7 rounded-xl bg-purple-100 text-[#7C3AED] text-sm font-extrabold font-display flex items-center justify-center shrink-0">
+                                      <span className="w-7 h-7 rounded-xl bg-[#F5EBD3] text-[#7A5C1E] text-sm font-extrabold font-display flex items-center justify-center shrink-0">
                                         {idx + 1}
                                       </span>
                                       <div className="space-y-3 flex-1">
@@ -1789,7 +1820,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                         >
                           <div>
                             <h4 className="font-display font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                              <Brain className="w-5 h-5 text-[#7C3AED]" />
+                              <Brain className="w-5 h-5 text-[#1B2A6B]" />
                               <span>AI Architectural Evaluation & Recommendations</span>
                             </h4>
                             <p className="text-xs text-slate-450 mt-0.5">Intelligent code diagnostics, critical improvements, and modular strengths</p>
@@ -1844,12 +1875,12 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                             </div>
 
                             {/* Architecture mapping explanation (Right 7 cols) */}
-                            <div className="lg:col-span-7 bg-[#FAF9FF] rounded-2xl p-6 border border-purple-50 flex flex-col space-y-3">
+                            <div className="lg:col-span-7 bg-[#F5EBD3]/30 rounded-2xl p-6 border border-blue-50 flex flex-col space-y-3">
                               <h5 className="font-display font-extrabold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                                <Layers className="w-4 h-4 text-purple-600" />
+                                <Layers className="w-4 h-4 text-blue-600" />
                                 <span>Logic Stream Flow Explanation</span>
                               </h5>
-                              <div className="text-sm text-slate-705 font-sans bg-white p-5 rounded-2xl border border-slate-100 shadow-sm shadow-purple-50/10 overflow-y-auto max-h-[320px] leading-relaxed">
+                              <div className="text-sm text-slate-705 font-sans bg-white p-5 rounded-2xl border border-slate-100 shadow-sm shadow-blue-50/10 overflow-y-auto max-h-[320px] leading-relaxed">
                                 {stripMarkdown(activeReport.aiInsights?.architectureExplanation || "Codebase logic streams have been reviewed under compliance frameworks.")}
                               </div>
                             </div>
@@ -1869,55 +1900,55 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                         >
                           <div>
                             <h4 className="font-display font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                              <TrendingUp className="w-5 h-5 text-[#7C3AED]" />
+                              <TrendingUp className="w-5 h-5 text-[#1B2A6B]" />
                               <span>Repository Scope Quantities</span>
                             </h4>
                             <p className="text-xs text-slate-450 mt-0.5">Calculated repository dimensions, physical lines count, and file statistics</p>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
-                            <div className="bg-[#FAF9FF] border border-purple-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
+                            <div className="bg-[#F5EBD3]/30 border border-blue-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none">Files Scanned</span>
-                              <div className="text-2xl font-black text-[#7C3AED] font-display mt-2">
+                              <div className="text-2xl font-black text-[#1B2A6B] font-display mt-2">
                                 {activeReport.stats?.filesAnalyzed?.toLocaleString() || "12"}
                               </div>
                             </div>
 
-                            <div className="bg-[#FAF9FF] border border-purple-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
+                            <div className="bg-[#F5EBD3]/30 border border-blue-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none">Detected Subsystems</span>
-                              <div className="text-2xl font-black text-[#7C3AED] font-display mt-2">
+                              <div className="text-2xl font-black text-[#1B2A6B] font-display mt-2">
                                 {activeReport.stats?.technologiesCount?.toLocaleString() || "4"}
                               </div>
                             </div>
 
-                            <div className="bg-[#FAF9FF] border border-purple-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
+                            <div className="bg-[#F5EBD3]/30 border border-blue-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none">Est Repository Weight</span>
-                              <div className="text-2xl font-black text-[#7C3AED] font-display mt-2">
+                              <div className="text-2xl font-black text-[#1B2A6B] font-display mt-2">
                                 {activeReport.stats?.estimatedSizeKb ? `${activeReport.stats.estimatedSizeKb.toLocaleString()} KB` : "180 KB"}
                               </div>
                             </div>
 
-                            <div className="bg-[#FAF9FF] border border-purple-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
+                            <div className="bg-[#F5EBD3]/30 border border-blue-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none">Complexity Rank</span>
-                              <div className="text-2xl font-black text-[#7C3AED] font-display mt-2">
+                              <div className="text-2xl font-black text-[#1B2A6B] font-display mt-2">
                                 {activeReport.stats?.complexityScore || "Highly Modular"}
                               </div>
                             </div>
                           </div>
 
                           {/* Graphical Visual indicator progress bars */}
-                          <div className="bg-[#FAF9FF] border border-purple-50 rounded-2xl p-6 space-y-5">
+                          <div className="bg-[#F5EBD3]/30 border border-blue-50 rounded-2xl p-6 space-y-5">
                             <h5 className="font-display font-extrabold text-xs uppercase text-slate-700 tracking-wider">Estimated Product Benchmark Values</h5>
                             
                             <div className="space-y-4 font-sans">
                               <div>
                                 <div className="flex justify-between text-xs text-slate-650 mb-1.5 font-bold leading-none">
                                   <span>Development Code Elegance Index</span>
-                                  <span className="text-[#7C3AED] font-extrabold">8.8 / 10</span>
+                                  <span className="text-[#1B2A6B] font-extrabold">8.8 / 10</span>
                                 </div>
                                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/40 p-0.5">
                                   <motion.div 
-                                    className="h-full bg-gradient-to-r from-[#7C3AED] to-indigo-500 rounded-full" 
+                                    className="h-full bg-gradient-to-r from-[#1B2A6B] to-indigo-500 rounded-full" 
                                     initial={{ width: 0 }}
                                     animate={{ width: "88%" }}
                                     transition={{ duration: 1.2 }}
@@ -1928,11 +1959,11 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                               <div>
                                 <div className="flex justify-between text-xs text-slate-650 mb-1.5 font-bold leading-none">
                                   <span>Architectural Component Reusability</span>
-                                  <span className="text-[#7C3AED] font-extrabold">9.2 / 10</span>
+                                  <span className="text-[#1B2A6B] font-extrabold">9.2 / 10</span>
                                 </div>
                                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/40 p-0.5">
                                   <motion.div 
-                                    className="h-full bg-gradient-to-r from-[#7C3AED] to-indigo-500 rounded-full" 
+                                    className="h-full bg-gradient-to-r from-[#1B2A6B] to-indigo-500 rounded-full" 
                                     initial={{ width: 0 }}
                                     animate={{ width: "92%" }}
                                     transition={{ duration: 1.2, delay: 0.1 }}
@@ -1943,11 +1974,11 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                               <div>
                                 <div className="flex justify-between text-xs text-slate-650 mb-1.5 font-bold leading-none">
                                   <span>Developer Initial Onboarding Velocity</span>
-                                  <span className="text-[#7C3AED] font-extrabold">9.5 / 10</span>
+                                  <span className="text-[#1B2A6B] font-extrabold">9.5 / 10</span>
                                 </div>
                                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/40 p-0.5">
                                   <motion.div 
-                                    className="h-full bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] rounded-full" 
+                                    className="h-full bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] rounded-full" 
                                     initial={{ width: 0 }}
                                     animate={{ width: "95%" }}
                                     transition={{ duration: 1.2, delay: 0.2 }}
@@ -1963,6 +1994,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                   </div>
 
                 </div>
+                </ErrorBoundary>
               )}
 
             </motion.div>
@@ -2291,7 +2323,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
             className={`fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 ${
               isCopilotOpen
                 ? "bg-slate-700 hover:bg-slate-600"
-                : "bg-gradient-to-r from-[#7C3AED] to-[#9061F9] hover:shadow-purple-200 hover:shadow-xl"
+                : "bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] hover:shadow-blue-200 hover:shadow-xl"
             }`}
           >
             {isCopilotOpen ? (

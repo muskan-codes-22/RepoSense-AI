@@ -1,27 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="braceGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#a855f7"/>
-      <stop offset="100%" stop-color="#6366f1"/>
-    </linearGradient>
-    <linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#818cf8"/>
-      <stop offset="100%" stop-color="#6366f1"/>
-    </linearGradient>
-  </defs>
   <!-- Background -->
-  <rect width="512" height="512" rx="96" fill="#0a1628"/>
-  <!-- Curly brace { -->
-  <path d="M120 120 C90 120 80 145 80 170 L80 220 C80 240 65 256 50 256 C65 256 80 272 80 292 L80 342 C80 367 90 392 120 392" 
-        stroke="url(#braceGrad)" stroke-width="36" fill="none" stroke-linecap="round"/>
-  <!-- Letter R -->
-  <path d="M180 140 L300 140 C370 140 400 180 400 230 C400 270 380 295 350 310 L410 390 L350 390 L295 310 L240 310 L240 390 L180 390 Z M240 200 L240 265 L295 265 C325 265 340 250 340 232 C340 215 325 200 295 200 Z" 
-        fill="white"/>
-  <!-- Magnifying glass -->
-  <circle cx="370" cy="365" r="52" stroke="url(#glassGrad)" stroke-width="14" fill="none"/>
-  <line x1="408" y1="403" x2="448" y2="443" stroke="url(#glassGrad)" stroke-width="14" stroke-linecap="round"/>
-  <!-- Bar chart inside magnifying glass -->
-  <rect x="352" y="358" width="10" height="20" rx="2" fill="#818cf8"/>
-  <rect x="367" y="348" width="10" height="30" rx="2" fill="#818cf8"/>
-  <rect x="382" y="354" width="10" height="24" rx="2" fill="#818cf8"/>
+  <rect width="512" height="512" rx="96" fill="#101B4A"/>
+  <!-- Owl face -->
+  <circle cx="256" cy="280" r="140" fill="#F5E6C8"/>
+  <!-- Left ear -->
+  <polygon points="150,180 180,100 220,175" fill="#F5E6C8"/>
+  <!-- Right ear -->
+  <polygon points="362,175 392,100 422,180" fill="#F5E6C8"/>
+  <!-- Left eye -->
+  <circle cx="210" cy="260" r="35" fill="#101B4A"/>
+  <circle cx="210" cy="260" r="12" fill="#F5E6C8"/>
+  <!-- Right eye with magnifying glass -->
+  <circle cx="310" cy="260" r="35" fill="#101B4A"/>
+  <circle cx="310" cy="260" r="12" fill="#F5E6C8"/>
+  <!-- Magnifying glass ring -->
+  <circle cx="310" cy="260" r="52" stroke="#101B4A" stroke-width="10" fill="none"/>
+  <!-- Magnifying glass handle -->
+  <line x1="350" y1="300" x2="390" y2="345" stroke="#101B4A" stroke-width="12" stroke-linecap="round"/>
+  <!-- Beak -->
+  <polygon points="256,310 240,340 272,340" fill="#101B4A"/>
 </svg>

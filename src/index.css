@@ -6,16 +6,20 @@
   --font-display: "DM Sans", sans-serif;
   --font-mono: "Source Code Pro", ui-monospace, SFMono-Regular, monospace;
   
-  --color-brand-50: #F5F3FF;
-  --color-brand-100: #EDE9FE;
-  --color-brand-200: #DDD6FE;
-  --color-brand-300: #C4B5FD;
-  --color-brand-400: #A78BFA;
-  --color-brand-500: #7C3AED;
-  --color-brand-600: #6D28D9;
-  --color-brand-700: #5B21B6;
-  --color-brand-800: #4C1D95;
-  --color-brand-900: #3B0764;
+  --color-brand-50: #E8EAF4;
+  --color-brand-100: #C5CBE3;
+  --color-brand-200: #9EA7D0;
+  --color-brand-300: #7783BD;
+  --color-brand-400: #2E3F8F;
+  --color-brand-500: #1B2A6B;
+  --color-brand-600: #1B2A6B;
+  --color-brand-700: #162257;
+  --color-brand-800: #101B4A;
+  --color-brand-900: #0A0F2E;
+  
+  --color-cream: #F5EBD3;
+  --color-cream-dark: #E8D9B8;
+  --color-cream-text: #7A5C1E;
 }
 
 /* Custom Scrollbar */
@@ -83,29 +87,100 @@ html {
   animation: spinSlow 8s linear infinite;
 }
 
-/* Pulsing purple aura effect */
+/* Royal navy glow effect */
 .purple-glow {
-  box-shadow: 0 0 40px -5px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 0 40px -5px rgba(27, 42, 107, 0.15);
 }
 
 .purple-glow-hover:hover {
-  box-shadow: 0 0 50px 0px rgba(124, 58, 237, 0.25);
+  box-shadow: 0 0 50px 0px rgba(27, 42, 107, 0.25);
 }
 
 /* Animated glow pulse for feature cards */
 @keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 15px 2px rgba(139, 92, 246, 0.15), inset 0 0 15px 2px rgba(139, 92, 246, 0.05); }
-  50% { box-shadow: 0 0 25px 5px rgba(139, 92, 246, 0.3), inset 0 0 25px 5px rgba(139, 92, 246, 0.1); }
+  0%, 100% { box-shadow: 0 0 15px 2px rgba(46, 63, 143, 0.15), inset 0 0 15px 2px rgba(46, 63, 143, 0.05); }
+  50% { box-shadow: 0 0 25px 5px rgba(46, 63, 143, 0.3), inset 0 0 25px 5px rgba(46, 63, 143, 0.1); }
 }
 
 .feature-card {
   animation: glowPulse 3s ease-in-out infinite;
-  border: 1px solid rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(46, 63, 143, 0.15);
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .feature-card:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 0 35px 8px rgba(139, 92, 246, 0.4), inset 0 0 20px 3px rgba(139, 92, 246, 0.1);
-  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 35px 8px rgba(46, 63, 143, 0.4), inset 0 0 20px 3px rgba(46, 63, 143, 0.1);
+  border-color: rgba(46, 63, 143, 0.5);
+}
+
+/* Preparing screen animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes textGlow {
+  0%, 100% {
+    text-shadow: 0 0 20px rgba(46, 63, 143, 0.4), 0 0 40px rgba(46, 63, 143, 0.2);
+  }
+  50% {
+    text-shadow: 0 0 30px rgba(46, 63, 143, 0.6), 0 0 60px rgba(46, 63, 143, 0.3);
+  }
+}
+
+@keyframes loadDot {
+  0%, 20% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  80%, 100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes slowZoom {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.08);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.7s ease-out forwards;
+}
+
+.animate-text-glow {
+  animation: textGlow 2.5s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
+
+.animate-slow-zoom {
+  animation: slowZoom 8s ease-out forwards;
 }

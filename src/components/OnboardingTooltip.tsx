@@ -190,7 +190,7 @@ export default function OnboardingTooltip({ userId, onComplete }: OnboardingTool
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.2 }}
-            className="fixed z-[9999] pointer-events-none rounded-xl border-2 border-[#7C3AED] shadow-[0_0_0_4px_rgba(124,58,237,0.2)]"
+            className="fixed z-[9999] pointer-events-none rounded-xl border-2 border-[#1B2A6B] shadow-[0_0_0_4px_rgba(27,42,107,0.2)]"
             style={{
               top: targetRect.top - 4,
               left: targetRect.left - 4,
@@ -216,7 +216,7 @@ export default function OnboardingTooltip({ userId, onComplete }: OnboardingTool
             {/* Step indicator */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#7C3AED]" />
+                <Sparkles className="w-3.5 h-3.5 text-[#7A5C1E]" />
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   Step {currentStep + 1} of {STEPS.length}
                 </span>
@@ -241,13 +241,13 @@ export default function OnboardingTooltip({ userId, onComplete }: OnboardingTool
             <div className="flex items-center justify-between">
               <button
                 onClick={handleSkip}
-                className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-[11px] font-semibold text-slate-400 hover:text-[#7A5C1E] transition-colors"
               >
                 Skip Tour
               </button>
               <button
                 onClick={handleNext}
-                className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#7C3AED] to-[#A78BFA] text-white font-semibold text-xs rounded-xl hover:shadow-lg hover:shadow-purple-500/20 transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] text-white font-semibold text-xs rounded-xl hover:shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95"
               >
                 <span>{currentStep === STEPS.length - 1 ? "Get Started" : "Next"}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -255,15 +255,15 @@ export default function OnboardingTooltip({ userId, onComplete }: OnboardingTool
             </div>
 
             {/* Step dots */}
-            <div className="flex justify-center gap-1.5 mt-4 pt-3 border-t border-slate-100">
+            <div className="flex justify-center gap-1.5 mt-4 pt-3 border-t border-[#F5EBD3]">
               {STEPS.map((_, i) => (
                 <div
                   key={i}
                   className={`w-1.5 h-1.5 rounded-full transition-all ${
                     i === currentStep
-                      ? "bg-[#7C3AED] w-4"
+                      ? "bg-[#1B2A6B] w-4"
                       : i < currentStep
-                      ? "bg-purple-300"
+                      ? "bg-[#E8D9B8]"
                       : "bg-slate-200"
                   }`}
                 />

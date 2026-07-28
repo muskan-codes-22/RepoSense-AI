@@ -221,7 +221,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
         >
           <h2 className="text-4xl lg:text-5xl font-sans font-[900] text-slate-900 leading-[1.05] tracking-tight">
             From Source Code to <br />
-            <span className="bg-gradient-to-r from-[#6D28D9] via-[#7C3AED] to-[#8B5CF6] bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#1B2A6B] via-[#1B2A6B] to-[#2E3F8F] bg-clip-text text-transparent">
               Production-Ready Reports.
             </span>
           </h2>
@@ -318,7 +318,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
               className="flex items-center gap-2.5 cursor-pointer select-none"
               onClick={onBackToLanding}
             >
-              <img src="/logo.svg" alt="RepoSense AI" className="w-9 h-9 rounded-xl shadow-md shadow-purple-500/10" />
+              <img src="/logo.svg" alt="RepoSense AI" className="w-9 h-9 rounded-xl shadow-md shadow-blue-500/10" />
               <div>
                 <h1 className="font-extrabold text-sm tracking-tight font-display text-slate-900">REPOSENSE AI</h1>
                 <p className="text-[9px] text-slate-500 font-mono tracking-widest uppercase font-semibold">Workspace Auth</p>
@@ -326,7 +326,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
             </div>
             <button
               onClick={onBackToLanding}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 border border-slate-200/80 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 text-xs font-semibold rounded-xl transition-all shadow-sm active:scale-98"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 border border-[#E8D9B8] text-[#7A5C1E] hover:text-[#7A5C1E] bg-[#F5EBD3]/50 hover:bg-[#F5EBD3] text-xs font-semibold rounded-xl transition-all shadow-sm active:scale-98"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Home</span>
@@ -338,7 +338,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
             <div className="hidden md:flex justify-end">
               <button
                 onClick={onBackToLanding}
-                className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#7A5C1E] transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back to Home</span>
@@ -357,7 +357,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                   <div className="space-y-2">
                     <button
                       onClick={() => setIsForgotPassword(false)}
-                      className="text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors flex items-center gap-1 mb-2"
+                      className="text-xs font-semibold text-[#1B2A6B] hover:text-[#101B4A] transition-colors flex items-center gap-1 mb-2"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
                       <span>Back to login</span>
@@ -392,7 +392,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                           value={resetEmail}
                           onChange={(e) => setResetEmail(e.target.value)}
                           placeholder="developers@org.com"
-                          className="w-full bg-slate-50 border border-slate-200 focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+                          className="w-full bg-slate-50 border border-slate-200 focus:border-[#1B2A6B] focus:ring-2 focus:ring-[#1B2A6B]/20 focus:bg-[#F5EBD3]/30 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
                           required
                         />
                       </div>
@@ -401,7 +401,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 hover:shadow-lg hover:opacity-95 active:scale-98 disabled:opacity-50 cursor-pointer"
+                      className="w-full py-3 bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] text-white font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 hover:shadow-lg hover:opacity-95 active:scale-98 disabled:opacity-50 cursor-pointer"
                     >
                       {isLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -479,7 +479,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="developers@example.com"
-                            className="w-full bg-slate-50 border border-slate-200 focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 focus:border-[#1B2A6B] focus:ring-2 focus:ring-[#1B2A6B]/20 focus:bg-[#F5EBD3]/30 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
                             required
                           />
                         </div>
@@ -491,7 +491,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                           <button
                             type="button"
                             onClick={() => setIsForgotPassword(true)}
-                            className="text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors"
+                            className="text-xs font-semibold text-[#1B2A6B] hover:text-[#101B4A] transition-colors"
                           >
                             Forgot password?
                           </button>
@@ -503,7 +503,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full bg-slate-50 border border-slate-200 focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 rounded-xl pl-10 pr-10 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 focus:border-[#1B2A6B] focus:ring-2 focus:ring-[#1B2A6B]/20 focus:bg-[#F5EBD3]/30 rounded-xl pl-10 pr-10 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
                             required
                           />
                           <button
@@ -521,7 +521,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                       <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 hover:shadow-lg hover:opacity-95 active:scale-98 disabled:opacity-50 cursor-pointer"
+                        className="w-full py-3 bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] text-white font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 hover:shadow-lg hover:opacity-95 active:scale-98 disabled:opacity-50 cursor-pointer"
                       >
                         {isLoading ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -544,7 +544,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
                             placeholder="Linus Torvalds"
-                            className="w-full bg-slate-50 border border-slate-200 focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 focus:border-[#1B2A6B] focus:ring-2 focus:ring-[#1B2A6B]/20 focus:bg-[#F5EBD3]/30 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
                             required
                           />
                         </div>
@@ -559,7 +559,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="linus@git.org"
-                            className="w-full bg-slate-50 border border-slate-200 focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 focus:border-[#1B2A6B] focus:ring-2 focus:ring-[#1B2A6B]/20 focus:bg-[#F5EBD3]/30 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
                             required
                           />
                         </div>
@@ -574,7 +574,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="•••••••• (Min 6 chars)"
-                            className="w-full bg-slate-50 border border-slate-200 focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 rounded-xl pl-10 pr-10 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 focus:border-[#1B2A6B] focus:ring-2 focus:ring-[#1B2A6B]/20 focus:bg-[#F5EBD3]/30 rounded-xl pl-10 pr-10 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
                             required
                           />
                           <button
@@ -596,7 +596,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full bg-slate-50 border border-slate-200 focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 focus:border-[#1B2A6B] focus:ring-2 focus:ring-[#1B2A6B]/20 focus:bg-[#F5EBD3]/30 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none"
                             required
                           />
                         </div>
@@ -608,11 +608,11 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                             type="checkbox"
                             checked={acceptTerms}
                             onChange={(e) => setAcceptTerms(e.target.checked)}
-                            className="rounded border-slate-200 text-purple-600 focus:ring-purple-600 w-4 h-4 mt-0.5 cursor-pointer"
+                            className="rounded border-slate-200 text-[#1B2A6B] focus:ring-[#1B2A6B] w-4 h-4 mt-0.5 cursor-pointer"
                             required
                           />
                           <span className="leading-relaxed">
-                            I agree to the <span className="text-slate-800 underline hover:text-purple-600">Terms of Service</span> and <span className="text-slate-800 underline hover:text-purple-600">Privacy Policy</span>.
+                            I agree to the <span className="text-slate-800 underline hover:text-[#1B2A6B]">Terms of Service</span> and <span className="text-slate-800 underline hover:text-[#1B2A6B]">Privacy Policy</span>.
                           </span>
                         </label>
                       </div>
@@ -620,7 +620,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                       <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 hover:shadow-lg hover:opacity-95 active:scale-98 disabled:opacity-50 cursor-pointer"
+                        className="w-full py-3 bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] text-white font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 hover:shadow-lg hover:opacity-95 active:scale-98 disabled:opacity-50 cursor-pointer"
                       >
                         {isLoading ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -649,7 +649,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                     <button
                       onClick={() => handleSocialLogin("google")}
                       disabled={isLoading}
-                      className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl py-2.5 font-medium flex items-center justify-center gap-2 shadow-sm transition-all text-xs active:scale-98 select-none cursor-pointer"
+                      className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-[#E8D9B8] hover:bg-[#F5EBD3]/30 text-slate-700 rounded-xl py-2.5 font-medium flex items-center justify-center gap-2 shadow-sm transition-all text-xs active:scale-98 select-none cursor-pointer"
                     >
                       <Chrome className="w-4 h-4 text-red-500" />
                       <span>Google</span>
@@ -657,7 +657,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
                     <button
                       onClick={() => handleSocialLogin("github")}
                       disabled={isLoading}
-                      className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl py-2.5 font-medium flex items-center justify-center gap-2 shadow-sm transition-all text-xs active:scale-98 select-none cursor-pointer"
+                      className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-[#E8D9B8] hover:bg-[#F5EBD3]/30 text-slate-700 rounded-xl py-2.5 font-medium flex items-center justify-center gap-2 shadow-sm transition-all text-xs active:scale-98 select-none cursor-pointer"
                     >
                       <Github className="w-4 h-4 text-slate-800" />
                       <span>GitHub</span>
@@ -670,7 +670,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
             {/* Demo hint */}
             <div className="mt-3 pt-3 border-t border-slate-100 text-center">
               <p className="text-[11px] text-slate-400 font-medium leading-relaxed max-w-sm mx-auto">
-                Demo Mode: Use any email and password or standard OAuth buttons. Enter demo account <code className="bg-slate-100 px-1 py-0.5 rounded text-purple-600 font-mono">demo@example.com</code> / <code className="bg-slate-100 px-1 py-0.5 rounded text-purple-600 font-mono">password</code> to restore sessions!
+                Demo Mode: Use any email and password or standard OAuth buttons. Enter demo account <code className="bg-slate-100 px-1 py-0.5 rounded text-[#1B2A6B] font-mono">demo@example.com</code> / <code className="bg-slate-100 px-1 py-0.5 rounded text-[#1B2A6B] font-mono">password</code> to restore sessions!
               </p>
             </div>
           </div>

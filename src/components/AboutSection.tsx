@@ -2,13 +2,13 @@ import { motion } from "motion/react";
 import { AlertTriangle, CheckCircle2, Zap, Brain, Search, ShieldCheck } from "lucide-react";
 
 const CODE_LINES = [
-  { text: "repo_type: next_app", color: "text-[#8B5CF6]" },
-  { text: "framework: next@14.2", color: "text-[#A78BFA]" },
-  { text: "lang: typescript", color: "text-[#818CF8]" },
-  { text: "pkg_mgr: pnpm", color: "text-[#8B5CF6]" },
-  { text: "runtime: node@20.x", color: "text-[#A78BFA]" },
-  { text: "db: postgresql@16", color: "text-[#818CF8]" },
-  { text: "confidence: 100%", color: "text-[#8B5CF6]" },
+  { text: "repo_type: next_app", color: "text-[#7A5C1E]" },
+  { text: "framework: next@14.2", color: "text-[#7A5C1E]/70" },
+  { text: "lang: typescript", color: "text-[#3B4FC4]" },
+  { text: "pkg_mgr: pnpm", color: "text-[#7A5C1E]" },
+  { text: "runtime: node@20.x", color: "text-[#7A5C1E]/70" },
+  { text: "db: postgresql@16", color: "text-[#3B4FC4]" },
+  { text: "confidence: 100%", color: "text-[#7A5C1E]" },
 ];
 
 const TECH_STACK = [
@@ -30,9 +30,9 @@ const PROBLEM_POINTS = [
 ];
 
 const SOLUTION_POINTS = [
-  { text: "Programmatic heuristic engine extracts ", highlight: "100% ground truth", icon: Search, iconColor: "text-[#6D28D9]" },
-  { text: "Detects 14+ repo types, 100+ technologies, build systems", icon: Brain, iconColor: "text-[#6D28D9]" },
-  { text: "Deterministic shield fed to ", highlight: "NVIDIA Mistral LLM", highlightSuffix: " as verified context", icon: Zap, iconColor: "text-[#6D28D9]" },
+  { text: "Programmatic heuristic engine extracts ", highlight: "100% ground truth", icon: Search, iconColor: "text-[#7A5C1E]" },
+  { text: "Detects 14+ repo types, 100+ technologies, build systems", icon: Brain, iconColor: "text-[#7A5C1E]" },
+  { text: "Deterministic shield fed to ", highlight: "NVIDIA Mistral LLM", highlightSuffix: " as verified context", icon: Zap, iconColor: "text-[#7A5C1E]" },
   { text: "Completely eliminates hallucination at the source", icon: CheckCircle2, iconColor: "text-emerald-600" },
 ];
 
@@ -46,8 +46,8 @@ function GlowLine() {
         stroke="currentColor"
         strokeWidth="1.5"
       >
-        <path d="M12 4 L12 30" className="stroke-[#6D28D9]/40" strokeLinecap="round" />
-        <path d="M6 24 L12 32 L18 24" className="stroke-[#6D28D9]/40" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 4 L12 30" className="stroke-[#7A5C1E]/40" strokeLinecap="round" />
+        <path d="M6 24 L12 32 L18 24" className="stroke-[#7A5C1E]/40" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </div>
   );
@@ -63,10 +63,10 @@ function SolutionArrow({ label }: { label: string }) {
         stroke="currentColor"
         strokeWidth="1.5"
       >
-        <path d="M12 4 L12 32" className="stroke-[#6D28D9]/50" strokeLinecap="round" />
-        <path d="M6 26 L12 34 L18 26" className="stroke-[#6D28D9]/50" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 4 L12 32" className="stroke-[#7A5C1E]/50" strokeLinecap="round" />
+        <path d="M6 26 L12 34 L18 26" className="stroke-[#7A5C1E]/50" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="absolute top-5 text-[8px] font-mono font-bold text-[#6D28D9]/70 uppercase tracking-wider whitespace-nowrap">
+      <span className="absolute top-5 text-[8px] font-mono font-bold text-[#7A5C1E]/70 uppercase tracking-wider whitespace-nowrap">
         {label}
       </span>
     </div>
@@ -82,7 +82,7 @@ export default function AboutSection() {
       {/* Background layers matching How It Works */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#d4d0c8_1px,transparent_1px),linear-gradient(to_bottom,#d4d0c8_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-40 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
-        <div className="absolute top-[15%] left-[10%] w-[300px] h-[300px] rounded-full bg-purple-400/8 blur-[120px] animate-pulse pointer-events-none" />
+        <div className="absolute top-[15%] left-[10%] w-[300px] h-[300px] rounded-full bg-blue-400/8 blur-[120px] animate-pulse pointer-events-none" />
         <div className="absolute bottom-[15%] right-[10%] w-[350px] h-[350px] rounded-full bg-indigo-400/8 blur-[120px] animate-float-slow pointer-events-none" />
       </div>
 
@@ -104,8 +104,8 @@ export default function AboutSection() {
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-50 border border-purple-200 text-[#6D28D9] text-[11px] font-bold uppercase tracking-[0.2em] font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#6D28D9] animate-pulse" />
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#F5EBD3] border border-[#E8D9B8] text-[#7A5C1E] text-[11px] font-bold uppercase tracking-[0.2em] font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#7A5C1E] animate-pulse" />
                 Our Core Philosophy
               </span>
             </motion.div>
@@ -119,7 +119,7 @@ export default function AboutSection() {
               transition={{ duration: 0.6, delay: 0.2 }}
             >
               Deep Code Intelligence.{" "}
-              <span className="bg-gradient-to-r from-[#6D28D9] via-[#7C3AED] to-[#8B5CF6] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#7A5C1E] via-[#7A5C1E] to-[#2E3F8F] bg-clip-text text-transparent">
                 Zero Hallucinations.
               </span>
             </motion.h2>
@@ -158,7 +158,7 @@ export default function AboutSection() {
                           <span>{point.highlightSuffix}</span>
                         )}
                         {point.code && (
-                          <code className="px-1.5 py-0.5 rounded bg-purple-50 text-[#6D28D9] text-xs font-mono border border-purple-200">
+                          <code className="px-1.5 py-0.5 rounded bg-[#F5EBD3] text-[#7A5C1E] text-xs font-mono border border-[#E8D9B8]">
                             {point.code}
                           </code>
                         )}
@@ -182,7 +182,7 @@ export default function AboutSection() {
               transition={{ duration: 0.6, delay: 0.5 }}
             >
               <h3 className="font-display font-bold text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#6D28D9]" />
+                <CheckCircle2 className="w-4 h-4 text-[#7A5C1E]" />
                 The Solution
               </h3>
               <ul className="space-y-2">
@@ -201,7 +201,7 @@ export default function AboutSection() {
                       <span>
                         {point.text}
                         {point.highlight && (
-                          <span className="text-[#6D28D9] font-semibold">{point.highlight}</span>
+                          <span className="text-[#7A5C1E] font-semibold">{point.highlight}</span>
                         )}
                         {point.highlightSuffix && (
                           <span>{point.highlightSuffix}</span>
@@ -224,7 +224,7 @@ export default function AboutSection() {
               {TECH_STACK.map((tech, i) => (
                 <motion.span
                   key={tech}
-                  className="px-3 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-mono font-medium text-slate-600 hover:border-purple-300 hover:text-[#6D28D9] transition-colors duration-300"
+                  className="px-3 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-mono font-medium text-slate-600 hover:border-blue-300 hover:text-[#7A5C1E] transition-colors duration-300"
                   initial={{ opacity: 0, scale: 0.85 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
@@ -254,19 +254,19 @@ export default function AboutSection() {
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               >
                 <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-slate-200 shadow-md shadow-slate-200/50">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 border border-purple-100">
-                    <svg viewBox="0 0 24 24" className="w-4 h-4 text-[#6D28D9]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#F5EBD3] border border-[#E8D9B8]">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 text-[#7A5C1E]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                     </svg>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[10px] text-slate-400 font-mono uppercase tracking-widest block">Incoming</span>
-                    <span className="text-xs font-mono text-[#6D28D9] font-medium">
+                    <span className="text-xs font-mono text-[#7A5C1E] font-medium">
                       github.com/vercel/next.js
                     </span>
                   </div>
-                  <div className="ml-2 w-1.5 h-1.5 rounded-full bg-[#6D28D9] animate-pulse" />
+                  <div className="ml-2 w-1.5 h-1.5 rounded-full bg-[#7A5C1E] animate-pulse" />
                 </div>
               </motion.div>
 
@@ -280,7 +280,7 @@ export default function AboutSection() {
               >
                 <div className="rounded-2xl bg-white border-2 border-slate-200 overflow-hidden shadow-md shadow-slate-200/40">
                   <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                    <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 text-[#6D28D9]" fill="currentColor">
+                    <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 text-[#7A5C1E]" fill="currentColor">
                       <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clipRule="evenodd" />
                     </svg>
                     <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
@@ -319,19 +319,19 @@ export default function AboutSection() {
                 animate={{ y: [0, -4, 0] }}
                 transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
               >
-                <div className="rounded-2xl bg-gradient-to-br from-purple-50 via-white to-indigo-50 border-2 border-purple-200 overflow-hidden shadow-md shadow-purple-200/30 relative">
+                <div className="rounded-2xl bg-gradient-to-br from-[#F5EBD3]/30 via-white to-indigo-50 border-2 border-[#E8D9B8] overflow-hidden shadow-md shadow-[#E8D9B8]/30 relative">
                   {/* Mesh gradient background */}
                   <div className="absolute inset-0 opacity-40">
                     <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_20%_30%,rgba(109,40,217,0.15),transparent_60%)]" />
                     <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_80%_70%,rgba(167,139,250,0.1),transparent_60%)]" />
                   </div>
 
-                  <div className="relative z-10 px-3 py-2 bg-purple-50/80 border-b border-purple-100 flex items-center gap-2">
-                    <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 text-[#6D28D9]" fill="currentColor">
+                  <div className="relative z-10 px-3 py-2 bg-[#F5EBD3]/80 border-b border-[#E8D9B8] flex items-center gap-2">
+                    <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 text-[#7A5C1E]" fill="currentColor">
                       <path d="M10 1a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 1zM5.05 3.05a.75.75 0 011.06 0l1.062 1.06A.75.75 0 116.11 5.173L5.05 4.11a.75.75 0 010-1.06zm9.9 0a.75.75 0 010 1.06l-1.06 1.062a.75.75 0 01-1.062-1.061l1.061-1.06a.75.75 0 011.06 0zM3 8a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5A.75.75 0 013 8zm11 0a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5A.75.75 0 0114 8zm-6.828 2.828a.75.75 0 011.06 0l.708.707a.75.75 0 01-1.061 1.06l-.707-.707a.75.75 0 010-1.06zm5.656 0a.75.75 0 010 1.06l-.707.708a.75.75 0 01-1.06-1.061l.707-.707a.75.75 0 011.06 0zM10 14a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 14z" />
                       <path d="M10 6a4 4 0 100 8 4 4 0 000-8zM2 10a8 8 0 1116 0 8 8 0 01-16 0z" />
                     </svg>
-                    <span className="text-[10px] font-mono text-[#6D28D9]/80 uppercase tracking-wider">
+                    <span className="text-[10px] font-mono text-[#7A5C1E]/80 uppercase tracking-wider">
                       Step 2 — NVIDIA Mistral LLM
                     </span>
                   </div>
@@ -350,7 +350,7 @@ export default function AboutSection() {
                         viewport={{ once: true }}
                         transition={{ duration: 0.3, delay: 1.0 + i * 0.15 }}
                       >
-                        <span className="text-[10px] text-[#6D28D9] mt-0.5 shrink-0">✦</span>
+                        <span className="text-[10px] text-[#7A5C1E] mt-0.5 shrink-0">✦</span>
                         <span className="text-[10px] font-sans text-slate-600 leading-relaxed">
                           {text}
                         </span>
@@ -358,12 +358,12 @@ export default function AboutSection() {
                     ))}
 
                     {/* Pulsing inference indicator */}
-                    <div className="flex items-center gap-2 pt-2 border-t border-purple-100">
+                    <div className="flex items-center gap-2 pt-2 border-t border-[#E8D9B8]">
                       <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#6D28D9] opacity-40" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#6D28D9]" />
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#7A5C1E] opacity-40" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#7A5C1E]" />
                       </span>
-                      <span className="text-[9px] font-mono text-[#6D28D9]/60 uppercase tracking-widest">
+                      <span className="text-[9px] font-mono text-[#7A5C1E]/60 uppercase tracking-widest">
                         Inference streaming…
                       </span>
                     </div>
@@ -381,20 +381,20 @@ export default function AboutSection() {
               >
                 <div className="relative">
                   {/* Glow backdrop */}
-                  <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-purple-100/50 via-purple-50/30 to-purple-100/50 blur-xl pointer-events-none" />
+                  <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-[#E8D9B8]/50 via-[#F5EBD3]/30 to-[#E8D9B8]/50 blur-xl pointer-events-none" />
 
-                  <div className="relative flex items-center gap-4 px-6 py-4 rounded-2xl bg-white border border-purple-200 shadow-lg shadow-purple-200/30 backdrop-blur-xl">
+                  <div className="relative flex items-center gap-4 px-6 py-4 rounded-2xl bg-white border border-[#E8D9B8] shadow-lg shadow-[#E8D9B8]/30 backdrop-blur-xl">
                     {/* Shield icon with scan animation */}
                     <motion.div
-                      className="shrink-0 w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center"
+                      className="shrink-0 w-10 h-10 rounded-xl bg-[#F5EBD3] border border-[#E8D9B8] flex items-center justify-center"
                       animate={{ boxShadow: ["0 0 0px 0px rgba(109,40,217,0)", "0 0 20px 4px rgba(109,40,217,0.1)", "0 0 0px 0px rgba(109,40,217,0)"] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                     >
-                      <ShieldCheck className="w-5 h-5 text-[#6D28D9]" />
+                      <ShieldCheck className="w-5 h-5 text-[#7A5C1E]" />
                     </motion.div>
 
                     <div className="space-y-1">
-                      <span className="text-xs font-display font-bold text-[#6D28D9] block">
+                      <span className="text-xs font-display font-bold text-[#7A5C1E] block">
                         Anti-Hallucination Filter
                       </span>
                       <span className="text-[10px] font-sans text-slate-500 leading-snug block max-w-[240px]">
@@ -413,10 +413,10 @@ export default function AboutSection() {
                           viewport={{ once: true }}
                           transition={{ duration: 0.3, delay: 1.6 + i * 0.1 }}
                         >
-                          <svg viewBox="0 0 16 16" className="w-3 h-3 text-[#6D28D9]" fill="currentColor">
+                          <svg viewBox="0 0 16 16" className="w-3 h-3 text-[#7A5C1E]" fill="currentColor">
                             <path fillRule="evenodd" d="M8 15A7 7 0 108 1a7 7 0 000 14zm3.78-9.72a.75.75 0 00-1.06-1.06L6.75 9.19 5.28 7.72a.75.75 0 00-1.06 1.06l2 2a.75.75 0 001.06 0l4.5-4.5z" clipRule="evenodd" />
                           </svg>
-                          <span className="text-[9px] font-mono text-[#6D28D9]/70 uppercase tracking-wider">{item}</span>
+                          <span className="text-[9px] font-mono text-[#7A5C1E]/70 uppercase tracking-wider">{item}</span>
                         </motion.div>
                       ))}
                     </div>
@@ -434,11 +434,11 @@ export default function AboutSection() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: 1.8 }}
               >
-                <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-50 to-purple-100/50 border border-purple-200">
-                  <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 text-[#6D28D9]" fill="currentColor">
+                <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#F5EBD3] to-[#E8D9B8]/50 border border-[#E8D9B8]">
+                  <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 text-[#7A5C1E]" fill="currentColor">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-[11px] font-mono font-medium text-[#6D28D9]">
+                  <span className="text-[11px] font-mono font-medium text-[#7A5C1E]">
                     Verified output → 100% accurate report
                   </span>
                 </div>
