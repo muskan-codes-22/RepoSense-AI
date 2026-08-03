@@ -808,7 +808,7 @@ Return only the JSON.
 
     const nvidiaApiKey = process.env.NVIDIA_API_KEY;
     const requestUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-    const modelName = "mistralai/mistral-small-4-119b-2603";
+const modelName = "deepseek-ai/deepseek-v4-pro";
     const MAX_RETRIES = 1;
     const BASE_DELAY_MS = 1000;
 
