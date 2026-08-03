@@ -20,7 +20,9 @@ RepoSense AI is a web application that leverages AI to analyze GitHub repositori
 
 - **Frontend**: React with TypeScript
 - **Styling**: Tailwind CSS
-- **AI Integration**: AI API
+- **Backend**: Express.js
+- **AI Integration**: NVIDIA NIM API (Mistral)
+- **Database**: Supabase (optional)
 - **Build Tool**: Vite
 
 ## Getting Started
@@ -28,15 +30,14 @@ RepoSense AI is a web application that leverages AI to analyze GitHub repositori
 ### Prerequisites
 
 - **Node.js** (v18 or higher)
-- **npm** or **yarn**
-- **API Key** - Get one from your AI provider
+- **npm**
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/reposense-ai.git
-   cd reposense-ai
+   git clone https://github.com/muskan-codes-22/RepoSense-AI.git
+   cd RepoSense-AI
    ```
 
 2. **Install dependencies**
@@ -46,9 +47,14 @@ RepoSense AI is a web application that leverages AI to analyze GitHub repositori
 
 3. **Configure environment variables**
 
-   Create a `.env.local` file in the root directory:
+   Copy the example env file and fill in your keys:
+   ```bash
+   cp .env.example .env
+   ```
+
+   At minimum, you need an NVIDIA API key:
    ```env
-   GEMINI_API_KEY=your_api_key_here
+   NVIDIA_API_KEY=your_api_key_here
    ```
 
 4. **Start the development server**
@@ -58,7 +64,7 @@ RepoSense AI is a web application that leverages AI to analyze GitHub repositori
 
 5. **Open your browser**
 
-   Navigate to `http://localhost:5173`
+   Navigate to `http://localhost:3000`
 
 ## Usage
 
@@ -70,29 +76,36 @@ RepoSense AI is a web application that leverages AI to analyze GitHub repositori
 ## Project Structure
 
 ```
-reposense-ai/
+RepoSense-AI/
 ├── src/
 │   ├── components/     # React components
-│   ├── services/       # API and AI services
-│   ├── utils/          # Helper functions
+│   ├── lib/            # Utilities (Supabase client, etc.)
 │   └── App.tsx         # Main application
 ├── public/             # Static assets
-├── .env.local          # Environment variables (not committed)
+├── server.ts           # Express backend with AI analysis
+├── .env.example        # Environment variable template
 └── package.json        # Dependencies and scripts
 ```
 
 ## Available Scripts
 
-- `npm run dev` - Start development server
+- `npm run dev` - Start development server (frontend + backend)
 - `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
+- `npm start` - Run production build
+- `npm run lint` - Type-check with TypeScript
 
 ## Environment Variables
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `GEMINI_API_KEY` | Your AI API key | Yes |
+| `NVIDIA_API_KEY` | NVIDIA NIM API key for AI analysis | Yes |
+| `GITHUB_TOKEN` | GitHub PAT to avoid API rate limits | No |
+| `SUPABASE_URL` | Supabase project URL for persistent history | No |
+| `SUPABASE_ANON_KEY` | Supabase anonymous key | No |
+| `VITE_SUPABASE_URL` | Same as SUPABASE_URL (exposed to frontend) | No |
+| `VITE_SUPABASE_ANON_KEY` | Same as SUPABASE_ANON_KEY (exposed to frontend) | No |
+
+The app works fully without Supabase — it falls back to local-only state.
 
 ## Contributing
 
@@ -105,9 +118,3 @@ reposense-ai/
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Built with React and TypeScript
-- Powered by AI
-- Styled with Tailwind CSS

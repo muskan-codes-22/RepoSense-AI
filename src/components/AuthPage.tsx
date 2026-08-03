@@ -81,7 +81,25 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
         password: password,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError")) {
+          setErrorStr("Unable to connect to authentication service. You can still use the app in offline mode with any email.");
+          const fallbackUser = {
+            id: `usr_${Date.now()}`,
+            email: email.trim(),
+            fullName: email.trim().split("@")[0],
+            avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${email.trim()}`
+          };
+          if (rememberMe) {
+            localStorage.setItem("reposense_remembered_email", email);
+          } else {
+            localStorage.removeItem("reposense_remembered_email");
+          }
+          onLoginSuccess(fallbackUser);
+          return;
+        }
+        throw error;
+      }
 
       if (data?.user) {
         const userEmail = data.user.email || "";
@@ -102,6 +120,22 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
         onLoginSuccess(authUser);
       }
     } catch (err: any) {
+      if (err?.message?.includes("Failed to fetch") || err?.message?.includes("NetworkError")) {
+        setErrorStr(null);
+        const fallbackUser = {
+          id: `usr_${Date.now()}`,
+          email: email.trim(),
+          fullName: email.trim().split("@")[0],
+          avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${email.trim()}`
+        };
+        if (rememberMe) {
+          localStorage.setItem("reposense_remembered_email", email);
+        } else {
+          localStorage.removeItem("reposense_remembered_email");
+        }
+        onLoginSuccess(fallbackUser);
+        return;
+      }
       setErrorStr(err?.message || "An authentication error occurred.");
     } finally {
       setIsLoading(false);
@@ -147,7 +181,19 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError")) {
+          const fallbackUser = {
+            id: `usr_${Date.now()}`,
+            email: email.trim(),
+            fullName: fullName,
+            avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${email.trim()}`
+          };
+          onLoginSuccess(fallbackUser);
+          return;
+        }
+        throw error;
+      }
 
       if (data?.user) {
         const userEmail = data.user.email || email.trim();
@@ -160,6 +206,16 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
         });
       }
     } catch (err: any) {
+      if (err?.message?.includes("Failed to fetch") || err?.message?.includes("NetworkError")) {
+        const fallbackUser = {
+          id: `usr_${Date.now()}`,
+          email: email.trim(),
+          fullName: fullName,
+          avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${email.trim()}`
+        };
+        onLoginSuccess(fallbackUser);
+        return;
+      }
       setErrorStr(err?.message || "Failed to finalize registration.");
     } finally {
       setIsLoading(false);
@@ -179,6 +235,16 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
       });
       if (error) throw error;
     } catch (err: any) {
+      if (err?.message?.includes("Failed to fetch") || err?.message?.includes("NetworkError")) {
+        const fallbackUser = {
+          id: `usr_${Date.now()}`,
+          email: `user@${provider}.com`,
+          fullName: `${provider.charAt(0).toUpperCase() + provider.slice(1)} User`,
+          avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${provider}_${Date.now()}`
+        };
+        onLoginSuccess(fallbackUser);
+        return;
+      }
       setErrorStr(err?.message || `Social login via ${provider} failed.`);
       setIsLoading(false);
     }
@@ -201,7 +267,11 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
       setInfoStr(`Reset password instructions have been sent to ${resetEmail}. Check your inbox!`);
       setResetEmail("");
     } catch (err: any) {
-      setErrorStr(err?.message || "Failed to process recovery request.");
+      if (err?.message?.includes("Failed to fetch") || err?.message?.includes("NetworkError")) {
+        setErrorStr("Unable to connect to authentication service. Please try again later or contact support.");
+      } else {
+        setErrorStr(err?.message || "Failed to process recovery request.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -670,7 +740,7 @@ export default function AuthPage({ onLoginSuccess, onBackToLanding, initialTab =
             {/* Demo hint */}
             <div className="mt-3 pt-3 border-t border-slate-100 text-center">
               <p className="text-[11px] text-slate-400 font-medium leading-relaxed max-w-sm mx-auto">
-                Demo Mode: Use any email and password or standard OAuth buttons. Enter demo account <code className="bg-slate-100 px-1 py-0.5 rounded text-[#1B2A6B] font-mono">demo@example.com</code> / <code className="bg-slate-100 px-1 py-0.5 rounded text-[#1B2A6B] font-mono">password</code> to restore sessions!
+                Demo Mode: Use <code className="bg-slate-100 px-1 py-0.5 rounded text-[#1B2A6B] font-mono">demo@example.com</code> / <code className="bg-slate-100 px-1 py-0.5 rounded text-[#1B2A6B] font-mono">password</code> for a quick tour. Any other email will use Supabase authentication or fall back to offline mode.
               </p>
             </div>
           </div>
