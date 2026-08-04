@@ -198,29 +198,32 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
-            className="fixed inset-0 bg-[#0A0F2E] flex flex-col items-center justify-end text-white z-50 overflow-hidden"
+            className="fixed inset-0 bg-[#0A1628] flex flex-col items-center justify-center text-white z-50 overflow-hidden"
           >
-            {/* Background image with slow zoom */}
-            <div className="absolute inset-0 animate-slow-zoom">
-              <img
-                src="/preparing-bg.jpg"
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            </div>
+            {/* Dark professional gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0A1628] via-[#0F2240] to-[#132D54]" />
+            
+            {/* Subtle radial glow */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(30,64,175,0.15)_0%,_transparent_70%)]" />
 
-            {/* Dark gradient overlay for text readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0F2E] via-[#0A0F2E]/70 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0A0F2E]/40 via-transparent to-transparent" />
+            {/* Content centered */}
+            <div className="relative z-10 flex flex-col items-center px-6 text-center select-none w-full max-w-lg">
+              {/* RepoSense Logo */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+                className="mb-8"
+              >
+                <img src="/logo.svg" alt="RepoSense AI" className="w-16 h-16 rounded-2xl shadow-lg shadow-blue-500/20" />
+              </motion.div>
 
-            {/* Content at bottom */}
-            <div className="relative z-10 flex flex-col items-center pb-20 px-6 text-center select-none w-full max-w-lg">
-              {/* Animated heading with glow */}
+              {/* Animated heading */}
               <motion.h2
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
-                className="font-display font-extrabold text-3xl sm:text-4xl tracking-tight text-white animate-text-glow mb-3"
+                transition={{ delay: 0.4, duration: 0.6, ease: "easeOut" }}
+                className="font-display font-extrabold text-3xl sm:text-4xl tracking-tight text-white mb-4"
               >
                 Preparing Your Workspace
                 <span className="inline-flex w-12 text-left">
@@ -234,8 +237,8 @@ export default function App() {
               <motion.p
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.6, ease: "easeOut" }}
-                className="text-slate-300/80 text-sm leading-relaxed font-sans max-w-sm mb-8"
+                transition={{ delay: 0.7, duration: 0.6, ease: "easeOut" }}
+                className="text-slate-400 text-sm leading-relaxed font-sans max-w-sm mb-10"
               >
                 Authenticating credentials, loading profiles, and configuring analysis panels.
               </motion.p>
@@ -244,14 +247,14 @@ export default function App() {
               <motion.div
                 initial={{ opacity: 0, scaleX: 0.8 }}
                 animate={{ opacity: 1, scaleX: 1 }}
-                transition={{ delay: 0.9, duration: 0.5 }}
+                transition={{ delay: 1, duration: 0.5 }}
                 className="w-64 sm:w-80"
               >
-                <div className="h-[3px] bg-white/10 rounded-full overflow-hidden relative">
+                <div className="h-1 bg-slate-700/50 rounded-full overflow-hidden relative">
                   <motion.div
                     className="absolute left-0 top-0 h-full rounded-full"
                     style={{
-                      background: "linear-gradient(90deg, transparent, rgba(27,42,107,0.8), rgba(46,63,143,1), rgba(27,42,107,0.8), transparent)",
+                      background: "linear-gradient(90deg, transparent, rgba(30,64,175,0.9), rgba(59,130,246,1), rgba(30,64,175,0.9), transparent)",
                       backgroundSize: "200% 100%",
                     }}
                     initial={{ width: "0%" }}
@@ -266,7 +269,7 @@ export default function App() {
                   transition={{ delay: 1.2, duration: 0.4 }}
                   className="mt-3 text-[11px] text-slate-500 font-mono tracking-widest uppercase animate-shimmer"
                   style={{
-                    backgroundImage: "linear-gradient(90deg, #6B6F80 0%, #2E3F8F 50%, #6B6F80 100%)",
+                    backgroundImage: "linear-gradient(90deg, #475569 0%, #3B82F6 50%, #475569 100%)",
                     backgroundClip: "text",
                     WebkitBackgroundClip: "text",
                     color: "transparent",

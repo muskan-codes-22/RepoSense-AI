@@ -107,24 +107,29 @@ export default function CopilotChat({ report, userId, onClose }: CopilotChatProp
           if (!trimmed || !trimmed.startsWith("data: ")) continue;
           const payload = trimmed.slice(6);
 
+          let parsed: any;
           try {
-            const parsed = JSON.parse(payload);
-            if (parsed.type === "chunk" && parsed.content) {
-              fullText += parsed.content;
-              setStreamingText(fullText);
-            } else if (parsed.type === "done") {
-            } else if (parsed.type === "error") {
-              throw new Error(parsed.message || "AI error occurred.");
-            }
-          } catch (e: any) {
-            if (e.message && e.message !== "AI error occurred.") continue;
-            throw e;
+            parsed = JSON.parse(payload);
+          } catch {
+            continue;
+          }
+
+          if (parsed.type === "chunk" && parsed.content) {
+            fullText += parsed.content;
+            setStreamingText(fullText);
+          } else if (parsed.type === "error") {
+            throw new Error(parsed.message || "AI error occurred.");
           }
         }
       }
 
       if (fullText) {
         setMessages((prev) => [...prev, { role: "assistant", content: fullText }]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "No response received. The AI model may be unavailable. Please try again." },
+        ]);
       }
     } catch (err: any) {
       console.error("[Copilot] Error:", err);

@@ -43,7 +43,6 @@ import {
   Laptop,
   Database,
   Cloud,
-  TrendingUp,
   Award,
   BookMarked,
   Brain,
@@ -99,8 +98,7 @@ enum AnalysisTab {
   TECH_STACK = "tech_stack",
   STRUCTURE = "structure",
   INSTALLATION = "installation",
-  INSIGHTS = "insights",
-  STATS = "stats"
+  INSIGHTS = "insights"
 }
 
 
@@ -193,10 +191,10 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
         console.error("Failed to load repo local history:", e);
       }
 
-      // 2. Query Supabase if authenticated real user exists
+      // 2. Query Supabase if user exists
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+        const userId = user?.id;
+        if (userId) {
           let records: any[] = [];
           let useFallbackTable = false;
 
@@ -204,7 +202,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
             const { data: mainData, error: mainErr } = await supabase
               .from("repository_analyses")
               .select("*")
-              .eq("user_id", session.user.id);
+              .eq("user_id", userId);
 
             if (!mainErr && mainData && mainData.length > 0) {
               records = mainData.map(item => {
@@ -246,7 +244,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
             const { data, error } = await supabase
               .from("reposense_reports")
               .select("*")
-              .eq("user_id", session.user.id);
+              .eq("user_id", userId);
 
             if (!error && data && data.length > 0) {
               records = data.map(item => {
@@ -320,32 +318,34 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
 
     // Save on cloud
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
+      // Use the user prop directly, fall back to Supabase session
+      const userId = user?.id;
+      if (userId) {
         // 1. Try upserting to repository_analyses table requested by user
         try {
-          await supabase
+          const { error: err1 } = await supabase
             .from("repository_analyses")
             .upsert({
               id: newReport.id,
-              user_id: session.user.id,
+              user_id: userId,
               repository_url: newReport.url,
               repository_name: `${newReport.owner}/${newReport.repo}`,
               summary: newReport.summary.projectOverview,
               analysis_result: newReport,
               created_at: newReport.analyzedAt,
             });
+          if (err1) console.warn("Save to repository_analyses error:", err1.message);
         } catch (dbErr) {
           console.warn("Save to repository_analyses bypassed:", dbErr);
         }
 
         // 2. Try upserting to backup compat reposense_reports table
         try {
-          await supabase
+          const { error: err2 } = await supabase
             .from("reposense_reports")
             .upsert({
               id: newReport.id,
-              user_id: session.user.id,
+              user_id: userId,
               owner: newReport.owner,
               repo: newReport.repo,
               url: newReport.url,
@@ -362,6 +362,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
               stats: newReport.stats,
               analyzed_at: newReport.analyzedAt,
             });
+          if (err2) console.warn("Save to reposense_reports error:", err2.message);
         } catch (dbErr) {
           console.warn("Save to reposense_reports bypassed:", dbErr);
         }
@@ -389,14 +390,14 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
 
     // Delete on cloud
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
+      const userId = user?.id;
+      if (userId) {
         try {
           await supabase
             .from("repository_analyses")
             .delete()
             .eq("id", id)
-            .eq("user_id", session.user.id);
+            .eq("user_id", userId);
         } catch (err) {
           console.warn("Delete from repository_analyses bypassed:", err);
         }
@@ -406,7 +407,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
             .from("reposense_reports")
             .delete()
             .eq("id", id)
-            .eq("user_id", session.user.id);
+            .eq("user_id", userId);
         } catch (err) {
           console.warn("Delete from reposense_reports bypassed:", err);
         }
@@ -429,13 +430,13 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
 
     // Clear on cloud
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
+      const userId = user?.id;
+      if (userId) {
         try {
           await supabase
             .from("repository_analyses")
             .delete()
-            .eq("user_id", session.user.id);
+            .eq("user_id", userId);
         } catch (err) {
           console.warn("Purge of repository_analyses bypassed:", err);
         }
@@ -444,7 +445,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
           await supabase
             .from("reposense_reports")
             .delete()
-            .eq("user_id", session.user.id);
+            .eq("user_id", userId);
         } catch (err) {
           console.warn("Purge of reposense_reports bypassed:", err);
         }
@@ -1113,7 +1114,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                       ) : (
                         <>
                           {/* Fallback estimate badge */}
-                          {healthScoreSource !== "ai" && (
+                          {healthScoreSource !== "ai" && healthScoreSource !== "computed" && (
                             <div className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-700 font-semibold text-center leading-snug">
                               ⚠ Estimated — limited data available for full analysis
                             </div>
@@ -1452,7 +1453,6 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                       { id: AnalysisTab.STRUCTURE, label: "Project Structure", icon: Layers },
                       { id: AnalysisTab.INSTALLATION, label: "Installation Guide", icon: Terminal },
                       { id: AnalysisTab.INSIGHTS, label: "AI Insights", icon: Sparkles },
-                      { id: AnalysisTab.STATS, label: "Statistics", icon: Info },
                     ].map((tab) => {
                       const Icon = tab.icon;
                       const isActive = activeAnalysisTab === tab.id;
@@ -1889,106 +1889,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                         </motion.div>
                       )}
 
-                      {/* Tab: Stats */}
-                      {activeAnalysisTab === AnalysisTab.STATS && (
-                        <motion.div
-                          key="report-stats"
-                          initial={{ opacity: 0, x: 10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -10 }}
-                          className="space-y-6"
-                        >
-                          <div>
-                            <h4 className="font-display font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                              <TrendingUp className="w-5 h-5 text-[#1B2A6B]" />
-                              <span>Repository Scope Quantities</span>
-                            </h4>
-                            <p className="text-xs text-slate-450 mt-0.5">Calculated repository dimensions, physical lines count, and file statistics</p>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
-                            <div className="bg-[#F5EBD3]/30 border border-blue-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none">Files Scanned</span>
-                              <div className="text-2xl font-black text-[#1B2A6B] font-display mt-2">
-                                {activeReport.stats?.filesAnalyzed?.toLocaleString() || "12"}
-                              </div>
-                            </div>
 
-                            <div className="bg-[#F5EBD3]/30 border border-blue-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none">Detected Subsystems</span>
-                              <div className="text-2xl font-black text-[#1B2A6B] font-display mt-2">
-                                {activeReport.stats?.technologiesCount?.toLocaleString() || "4"}
-                              </div>
-                            </div>
-
-                            <div className="bg-[#F5EBD3]/30 border border-blue-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none">Est Repository Weight</span>
-                              <div className="text-2xl font-black text-[#1B2A6B] font-display mt-2">
-                                {activeReport.stats?.estimatedSizeKb ? `${activeReport.stats.estimatedSizeKb.toLocaleString()} KB` : "180 KB"}
-                              </div>
-                            </div>
-
-                            <div className="bg-[#F5EBD3]/30 border border-blue-50 rounded-2xl p-4 text-center hover:shadow-sm transition-all duration-200">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none">Complexity Rank</span>
-                              <div className="text-2xl font-black text-[#1B2A6B] font-display mt-2">
-                                {activeReport.stats?.complexityScore || "Highly Modular"}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Graphical Visual indicator progress bars */}
-                          <div className="bg-[#F5EBD3]/30 border border-blue-50 rounded-2xl p-6 space-y-5">
-                            <h5 className="font-display font-extrabold text-xs uppercase text-slate-700 tracking-wider">Estimated Product Benchmark Values</h5>
-                            
-                            <div className="space-y-4 font-sans">
-                              <div>
-                                <div className="flex justify-between text-xs text-slate-650 mb-1.5 font-bold leading-none">
-                                  <span>Development Code Elegance Index</span>
-                                  <span className="text-[#1B2A6B] font-extrabold">8.8 / 10</span>
-                                </div>
-                                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/40 p-0.5">
-                                  <motion.div 
-                                    className="h-full bg-gradient-to-r from-[#1B2A6B] to-indigo-500 rounded-full" 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: "88%" }}
-                                    transition={{ duration: 1.2 }}
-                                  />
-                                </div>
-                              </div>
-
-                              <div>
-                                <div className="flex justify-between text-xs text-slate-650 mb-1.5 font-bold leading-none">
-                                  <span>Architectural Component Reusability</span>
-                                  <span className="text-[#1B2A6B] font-extrabold">9.2 / 10</span>
-                                </div>
-                                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/40 p-0.5">
-                                  <motion.div 
-                                    className="h-full bg-gradient-to-r from-[#1B2A6B] to-indigo-500 rounded-full" 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: "92%" }}
-                                    transition={{ duration: 1.2, delay: 0.1 }}
-                                  />
-                                </div>
-                              </div>
-
-                              <div>
-                                <div className="flex justify-between text-xs text-slate-650 mb-1.5 font-bold leading-none">
-                                  <span>Developer Initial Onboarding Velocity</span>
-                                  <span className="text-[#1B2A6B] font-extrabold">9.5 / 10</span>
-                                </div>
-                                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/40 p-0.5">
-                                  <motion.div 
-                                    className="h-full bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] rounded-full" 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: "95%" }}
-                                    transition={{ duration: 1.2, delay: 0.2 }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
 
                     </AnimatePresence>
                   </div>

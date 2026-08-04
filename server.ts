@@ -555,6 +555,196 @@ app.post("/api/analyze", async (req, res) => {
   const nonArchTypes = ["Learning Repository", "Portfolio", "Documentation", "Course Repository", "Research Project", "Data Repository", "Configuration Repository"];
   const isArchitectureConfident = !nonArchTypes.includes(detectedRepoType) && filePathsInRepo.length > 8;
 
+  // ── Programmatic Health Score (replaces unreliable AI-generated scores) ──
+  const computeHealthScore = () => {
+    const filesLower = filePathsInRepo.map(f => f.toLowerCase());
+    const allContextLower = JSON.stringify(filesContext).toLowerCase();
+    const allPathsLower = filesLower.join(" ");
+    let docScore = 0;
+    let archScore = 0;
+    let codeScore = 0;
+    let maintScore = 0;
+    let scaleScore = 0;
+
+    // DOCUMENTATION (0-100)
+    const hasReadme = filesLower.some(f => f.endsWith("readme.md") || f.endsWith("readme.rst") || f.endsWith("readme"));
+    const readmeLen = (readmeContent || "").length;
+    if (hasReadme && readmeLen > 3000) docScore += 40;
+    else if (hasReadme && readmeLen > 1000) docScore += 30;
+    else if (hasReadme && readmeLen > 300) docScore += 20;
+    else if (hasReadme) docScore += 10;
+    const hasDocsDir = filesLower.some(f => f.startsWith("docs/") || f.startsWith("doc/") || f.startsWith("documentation/"));
+    if (hasDocsDir) docScore += 25;
+    // Detect docstrings: Python (""", '''), JSDoc (@param), Java (/** */, javadoc)
+    const hasDocstrings = allContextLower.includes("@param") || allContextLower.includes("@returns") ||
+      allContextLower.includes('"""') || allContextLower.includes("'''") ||
+      allContextLower.includes(":param ") || allContextLower.includes(":type ") ||
+      allPathsLower.includes("javadoc") || allContextLower.includes("{@link}");
+    if (hasDocstrings) docScore += 15;
+    const hasChangelog = filesLower.some(f => f.includes("changelog") || f.includes("changes") || f.includes("history"));
+    if (hasChangelog) docScore += 10;
+    const hasContributing = filesLower.some(f => f.includes("contributing"));
+    if (hasContributing) docScore += 10;
+    docScore = Math.min(docScore, 100);
+
+    // ARCHITECTURE (0-100)
+    const topLevelDirs = new Set(filePathsInRepo.map(f => f.split("/")[0]).filter(d => !d.startsWith(".")));
+    if (topLevelDirs.size > 8) archScore += 20;
+    else if (topLevelDirs.size > 5) archScore += 15;
+    else if (topLevelDirs.size > 3) archScore += 10;
+    // Detect any organized source directory (not just /src/)
+    const hasSourceDir = filesLower.some(f => f.startsWith("src/") || f.startsWith("lib/") || f.startsWith("pkg/") ||
+      f.match(/^[a-z]+\//) && !f.startsWith(".") && !f.startsWith("test") && !f.startsWith("doc"));
+    if (hasSourceDir) archScore += 15;
+    // Detect component/module/package separation (JS, Python, Java, Go, etc.)
+    const hasSeparation = filesLower.some(f => f.includes("/components/") || f.includes("/modules/") ||
+      f.includes("/packages/") || f.includes("/services/") || f.includes("/utils/") || f.includes("/helpers/") ||
+      f.includes("/core/") || f.includes("/io/") || f.includes("/api/") || f.includes("/lib/") ||
+      f.includes("\\components\\") || f.includes("\\modules\\") || f.includes("\\services\\"));
+    if (hasSeparation) archScore += 20;
+    // Detect src-like nesting depth (indicates organized code)
+    const deepFiles = filesLower.filter(f => f.split("/").length > 3);
+    if (deepFiles.length > filesLower.length * 0.3) archScore += 15;
+    else if (deepFiles.length > filesLower.length * 0.15) archScore += 10;
+    // Config directory
+    const hasConfigDir = filesLower.some(f => f.startsWith("config/") || f.startsWith("configs/") ||
+      f.startsWith("src/config") || f.startsWith("etc/") || f.startsWith(".config/"));
+    if (hasConfigDir) archScore += 10;
+    // Well-organized non-flat structure
+    if (filePathsInRepo.length > 50) archScore += 10;
+    else if (filePathsInRepo.length > 20) archScore += 5;
+    archScore = Math.min(archScore, 100);
+
+    // CODE QUALITY (0-100)
+    // Linting: ESLint (JS), Ruff/Flake8/Pylint (Python), Checkstyle/SpotBugs (Java), golangci-lint (Go)
+    const hasLinter = filesLower.some(f => f.includes("eslint") || f.includes(".eslintrc") ||
+      f.includes("ruff.toml") || f.includes(".ruff") || f.includes("ruff") ||
+      f.includes("flake8") || f.includes(".flake8") || f.includes("pylintrc") || f.includes(".pylintrc") ||
+      f.includes("checkstyle") || f.includes("spotbugs") || f.includes("golangci") ||
+      f.includes(".rubocop") || f.includes("rubocop") || f.includes(".clippy"));
+    if (hasLinter) codeScore += 20;
+    // Formatting: Prettier (JS), Black (Python), rustfmt (Rust), google-java-format
+    const hasFormatter = filesLower.some(f => f.includes("prettier") ||
+      f.includes("black") || f.includes(".black") || f.includes("pyproject.toml") ||
+      f.includes("rustfmt") || f.includes("google-java-format") || f.includes("stylua"));
+    if (hasFormatter) codeScore += 10;
+    // Type checking: TypeScript, mypy, pyright, Java strict, mypy.ini
+    const hasTypes = filesLower.some(f => f.includes("tsconfig") ||
+      f.includes("mypy.ini") || f.includes("mypy") || f.includes("pyright") || f.includes("pyrightconfig") ||
+      f.includes("py.typed") || f.includes("type_check") || f.includes("mypy.toml"));
+    if (hasTypes) codeScore += 15;
+    // Tests: multiple test frameworks across languages
+    const hasTests = filesLower.some(f => f.includes(".test.") || f.includes(".spec.") ||
+      f.includes("/test/") || f.includes("/tests/") || f.includes("/__tests__/") ||
+      f.includes("\\test\\") || f.includes("\\tests\\") ||
+      f.includes("test_") || f.includes("_test.") || f.includes("_test.py") ||
+      f.includes("conftest") || f.includes("pytest.ini") || f.includes("tox.ini") ||
+      f.includes("jest.config") || f.includes("vitest.config") || f.includes("karma.conf") ||
+      f.includes("junit") || f.includes("testng") || f.includes("_test.go") ||
+      f.includes("phpunit") || f.includes("rspec") || f.includes("minitest"));
+    if (hasTests) codeScore += 30;
+    // Coverage
+    const hasCoverage = filesLower.some(f => f.includes("coverage") ||
+      f.includes("jest.config") || f.includes("vitest.config") || f.includes(".nycrc") ||
+      f.includes("coverage.xml") || f.includes("htmlcov") || f.includes("lcov") ||
+      f.includes(".coveragerc") || f.includes("codecov") || f.includes("coveralls") ||
+      f.includes("pytest-cov") || f.includes("jacoco") || f.includes("tarpaulin"));
+    if (hasCoverage) codeScore += 15;
+    // Pre-commit hooks
+    const hasHooks = filesLower.some(f => f.includes("husky") || f.includes("pre-commit") ||
+      f.includes("lint-staged") || f.includes(".pre-commit-config"));
+    if (hasHooks) codeScore += 10;
+    codeScore = Math.min(codeScore, 100);
+
+    // MAINTAINABILITY (0-100)
+    // Lock/dependency files across ecosystems
+    const hasLockFile = filesLower.some(f => f.includes("package-lock.json") || f.includes("yarn.lock") ||
+      f.includes("pnpm-lock") || f.includes("poetry.lock") || f.includes("go.sum") ||
+      f.includes("Cargo.lock") || f.includes("Gemfile.lock") || f.includes("composer.lock") ||
+      f.includes("Pipfile.lock") || f.includes("pip-tools") || f.includes("uv.lock") ||
+      f.includes("requirements-lock") || f.includes("requirements.txt") || f.includes("setup.py") ||
+      f.includes("setup.cfg") || f.includes("pyproject.toml") || f.includes("pom.xml") ||
+      f.includes("build.gradle") || f.includes("build.gradle.kts") || f.includes("go.mod") ||
+      f.includes("Cargo.toml") || f.includes("Gemfile") || f.includes("mix.exs"));
+    if (hasLockFile) maintScore += 20;
+    // Dependency management automation
+    const hasDependabot = filesLower.some(f => f.includes("dependabot") || f.includes("renovate") ||
+      f.includes("renovate.json") || f.includes(".renovaterc"));
+    if (hasDependabot) maintScore += 15;
+    // License
+    const hasLicense = filesLower.some(f => f.includes("license") && (f.endsWith(".md") || f.endsWith(".txt") || f.endsWith(".rst") || f === "license" || f === "license.md" || f === "license.txt" || f === "license-bsd" || f === "license-apache"));
+    if (hasLicense) maintScore += 10;
+    // Issue/PR templates
+    const hasTemplates = filesLower.some(f => f.includes("issue_template") || f.includes("ISSUE_TEMPLATE") ||
+      f.includes("pull_request_template") || f.includes("PULL_REQUEST_TEMPLATE") ||
+      f.includes(".github/ISSUE_TEMPLATE") || f.includes(".github/pull_request_template"));
+    if (hasTemplates) maintScore += 10;
+    // Recency of activity
+    if (repoMeta?.pushed_at) {
+      const daysSinceUpdate = (Date.now() - new Date(repoMeta.pushed_at).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceUpdate < 30) maintScore += 20;
+      else if (daysSinceUpdate < 90) maintScore += 15;
+      else if (daysSinceUpdate < 180) maintScore += 10;
+      else if (daysSinceUpdate < 365) maintScore += 5;
+    }
+    // README presence (already checked above)
+    if (hasReadme) maintScore += 10;
+    // CI config
+    const hasCIConfig = filesLower.some(f => f.includes(".github/workflows/") || f.includes(".gitlab-ci") ||
+      f.includes(".circleci/") || f.includes("Jenkinsfile") || f.includes(".travis.yml") ||
+      f.includes("azure-pipelines") || f.includes("bitbucket-pipelines") || f.includes("appveyor") ||
+      f.includes(".github/workflows"));
+    if (hasCIConfig) maintScore += 10;
+    // Code of conduct, security policy
+    const hasCommunityFiles = filesLower.some(f => f.includes("code_of_conduct") || f.includes("security") ||
+      f.includes("CODE_OF_CONDUCT") || f.includes("SECURITY"));
+    if (hasCommunityFiles) maintScore += 5;
+    maintScore = Math.min(maintScore, 100);
+
+    // SCALABILITY (0-100)
+    // Containerization
+    const hasDocker = filesLower.some(f => f.includes("dockerfile") || f.includes("docker-compose") ||
+      f.includes(".dockerignore") || f.includes("docker-compose.yml") || f.includes("docker-compose.yaml"));
+    if (hasDocker) scaleScore += 20;
+    // CI/CD
+    const hasCI = filesLower.some(f => f.includes(".github/workflows/") || f.includes(".gitlab-ci") ||
+      f.includes(".circleci/") || f.includes("Jenkinsfile") || f.includes(".travis.yml") ||
+      f.includes("azure-pipelines") || f.includes("bitbucket-pipelines"));
+    if (hasCI) scaleScore += 25;
+    // Deployment configs
+    const hasCD = filesLower.some(f => f.includes("deploy") || f.includes("vercel.json") ||
+      f.includes("netlify.toml") || f.includes("Procfile") || f.includes("render.yaml") ||
+      f.includes("kubernetes") || f.includes("k8s") || f.includes("helm") || f.includes("terraform") ||
+      f.includes("ansible") || f.includes(".ebextensions") || f.includes("appspec.yml"));
+    if (hasCD) scaleScore += 15;
+    // Environment config
+    const hasEnvExample = filesLower.some(f => f.includes(".env.example") || f.includes(".env.sample") ||
+      f.includes(".env.template") || f.includes(".env.dev") || f.includes(".env.local"));
+    if (hasEnvExample) scaleScore += 10;
+    // .gitignore
+    const hasGitignore = filesLower.some(f => f.includes(".gitignore"));
+    if (hasGitignore) scaleScore += 5;
+    // Modular architecture bonus
+    if (hasSeparation && hasSourceDir) scaleScore += 15;
+    // Multiple languages/frameworks detected = more mature project
+    const langCount = Object.keys(repoLanguages).length;
+    if (langCount > 4) scaleScore += 10;
+    else if (langCount > 2) scaleScore += 5;
+    scaleScore = Math.min(scaleScore, 100);
+
+    // Stars bonus: popular projects are generally better maintained (small bonus)
+    const stars = repoMeta?.stargazers_count ?? 0;
+    const starBonus = stars > 10000 ? 5 : stars > 1000 ? 3 : stars > 100 ? 1 : 0;
+
+    const raw = docScore * 0.20 + archScore * 0.20 + codeScore * 0.25 + maintScore * 0.20 + scaleScore * 0.15;
+    const overall = Math.min(Math.round(raw + starBonus), 100);
+
+    return { overall, documentation: docScore, architecture: archScore, codeQuality: codeScore, maintainability: maintScore, scalability: scaleScore };
+  };
+
+  const computedHealth = computeHealthScore();
+  console.log(`[Health] Programmatic score: ${computedHealth.overall} (doc:${computedHealth.documentation} arch:${computedHealth.architecture} code:${computedHealth.codeQuality} maint:${computedHealth.maintainability} scale:${computedHealth.scalability})`);
+
   // Prepare tailored section guidance based on repository type to enforce high-fidelity summaries
   let dynamicSectionGuidance = "";
   if (detectedRepoType === "Learning Repository" || detectedRepoType === "Course Repository") {
@@ -702,13 +892,13 @@ Analyze this codebase extensively. Generate a structured, professional architect
     "estimatedSizeKb": number (size in KB from metadata),
     "complexityScore": "Low" | "Medium" | "High" (the level of technical sophistication)
   },
-  "healthScore": number (overall health score 0-100 based on documentation quality, code organization, testing, tooling, and project maturity),
+  "healthScore": number (overall health score 0-100. CRITICAL: You MUST differentiate scores between repositories. A small personal project should score 20-50. A decent open-source project with README and tests should score 50-70. Only mature, well-documented, well-tested, actively maintained projects with CI/CD and comprehensive tooling should score 70-90. Never give the same score to different repos. Base strictly on actual evidence found in the codebase: presence of tests, linting, CI/CD configs, documentation, type safety, dependency management, commit activity.),
   "healthMetrics": {
-    "documentation": number (0-100, based on README quality, docs directory, comments, JSDoc/typedoc presence),
-    "architecture": number (0-100, based on folder structure, separation of concerns, modularity),
-    "codeQuality": number (0-100, based on linting config, test presence, type safety, code patterns),
-    "maintainability": number (0-100, based on dependency management, lock files, recent activity, issue management),
-    "scalability": number (0-100, based on CI/CD, Docker, deployment configs, modular architecture)
+    "documentation": number (0-100, score LOW if only a basic README exists, MEDIUM if README is detailed with examples, HIGH only if docs directory, JSDoc/typedoc, and inline comments are present),
+    "architecture": number (0-100, score LOW for flat single-file projects, MEDIUM for basic folder separation, HIGH only for clear separation of concerns with modular design),
+    "codeQuality": number (0-100, score LOW if no linting or tests, MEDIUM if eslint/prettier config exists, HIGH only if tests, linting, type safety, and CI checks are all present),
+    "maintainability": number (0-100, score LOW if no lock file or stale dependencies, MEDIUM if lock files and recent commits, HIGH only if active issue management, dependency updates, and changelog),
+    "scalability": number (0-100, score LOW if no CI/CD or Docker, MEDIUM if basic CI exists, HIGH only if full CI/CD pipeline, Docker, deployment configs, and modular architecture)
   }
 }
 
@@ -808,7 +998,7 @@ Return only the JSON.
 
     const nvidiaApiKey = process.env.NVIDIA_API_KEY;
     const requestUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-const modelName = "deepseek-ai/deepseek-v4-pro";
+const modelName = "meta/llama-3.1-8b-instruct";
     const MAX_RETRIES = 1;
     const BASE_DELAY_MS = 1000;
 
@@ -847,7 +1037,7 @@ const modelName = "deepseek-ai/deepseek-v4-pro";
             messages: [
               {
                 role: "system",
-                content: "You are RepoSense AI, an exceptional full-stack developer and system architect. Your goal is to return a strict, valid JSON string following the requested format schema exactly. Be concise — every text field should be short, punchy, and to the point. No fluff, no long paragraphs. Do not add any extra preambles, chat prefixes, or post texts. Write all text fields in plain text only — do not use any markdown formatting such as **bold**, backticks, or headers."
+                content: "You are RepoSense AI, an exceptional full-stack developer and system architect. Your goal is to return a strict, valid JSON string following the requested format schema exactly. Be concise — every text field should be short, punchy, and to the point. No fluff, no long paragraphs. Do not add any extra preambles, chat prefixes, or post texts. Write all text fields in plain text only — do not use any markdown formatting such as **bold**, backticks, or headers. CRITICAL: You MUST assign different health scores to different repositories. A repo with only a README and no tests should score ~30-45. A repo with README, basic structure, and some config should score ~45-60. A well-organized repo with tests, linting, CI/CD, docs, and active maintenance should score ~60-80. Only elite, production-grade repos with comprehensive everything should score 80+. Never default to 80."
               },
               {
                 role: "user",
@@ -1002,13 +1192,15 @@ const modelName = "deepseek-ai/deepseek-v4-pro";
       openIssues: typeof parsedData.openIssues === "number" ? parsedData.openIssues : (repoMeta?.open_issues_count ?? 0),
       repoType: parsedData.repoType || "Software Project",
       architectureConfident: parsedData.architectureConfident ?? true,
-      healthScore: typeof parsedData.healthScore === "number" ? parsedData.healthScore : undefined,
-      healthMetrics: parsedData.healthMetrics || undefined,
-      healthScoreSource: (() => {
-        if (typeof parsedData.healthScore !== "number") return "fallback_parse";
-        if (usedApiFallback) return "fallback_api";
-        return "ai";
-      })(),
+      healthScore: computedHealth.overall,
+      healthMetrics: {
+        documentation: computedHealth.documentation,
+        architecture: computedHealth.architecture,
+        codeQuality: computedHealth.codeQuality,
+        maintainability: computedHealth.maintainability,
+        scalability: computedHealth.scalability
+      },
+      healthScoreSource: "computed" as const,
       summary: parsedData.summary || {
         projectOverview: parsedData.description || "Project representation.",
         purpose: "Repository audit.",
@@ -1218,7 +1410,7 @@ ${reportContext}`
 
   const nvidiaApiKey = process.env.NVIDIA_API_KEY;
   const requestUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
-  const modelName = "mistralai/mistral-small-4-119b-2603";
+  const modelName = "meta/llama-3.1-8b-instruct";
   const MAX_RETRIES = 1;
   const BASE_DELAY_MS = 1000;
 
