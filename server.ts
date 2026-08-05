@@ -1,7 +1,5 @@
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
-// Vite is only needed for local dev — dynamically import to avoid crashing Vercel serverless
 
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
@@ -41,14 +39,6 @@ if (isUrlValid(supabaseUrl) && supabaseServiceKey && !supabaseServiceKey.include
   }
 } else {
   console.warn("[RepoSense Server] Supabase credentials missing or invalid. Local-only fallbacks will be used.");
-}
-
-// ES module compatibility — guarded so serverless runtime failures don't crash the function
-let __dirname = process.cwd();
-try {
-  __dirname = path.dirname(fileURLToPath(import.meta.url));
-} catch {
-  // On Vercel / bundled runtimes import.meta.url may be unreliable; fall back to cwd
 }
 
 // Initialize Express
@@ -1550,7 +1540,9 @@ app.all("/api/*", (req, res) => {
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     // Vite middleware for Dev Server — dynamic import keeps Vercel bundle small
+    const { fileURLToPath } = await import("url");
     const { createServer: createViteServer } = await import("vite");
+    const localDir = path.dirname(fileURLToPath(import.meta.url));
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
