@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createServer as createViteServer } from "vite";
+// Vite is only needed for local dev — dynamically import to avoid crashing Vercel serverless
 
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
@@ -1545,7 +1545,8 @@ app.all("/api/*", (req, res) => {
 // Configure Vite or Static Asset delivery
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
-    // Vite middleware for Dev Server
+    // Vite middleware for Dev Server — dynamic import keeps Vercel bundle small
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -1565,7 +1566,12 @@ async function startServer() {
   });
 }
 
-startServer().catch((startupErr: any) => {
-  console.error("=== BACKEND STARTUP EXCEPTION ===");
-  console.error(startupErr.stack || startupErr.message || startupErr);
-});
+// Only start the server when running directly (not on Vercel)
+if (!process.env.VERCEL) {
+  startServer().catch((startupErr: any) => {
+    console.error("=== BACKEND STARTUP EXCEPTION ===");
+    console.error(startupErr.stack || startupErr.message || startupErr);
+  });
+}
+
+export default app;
