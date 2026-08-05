@@ -1539,10 +1539,7 @@ app.all("/api/*", (req, res) => {
 // Configure Vite or Static Asset delivery
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
-    // Vite middleware for Dev Server — dynamic import keeps Vercel bundle small
-    const { fileURLToPath } = await import("url");
     const { createServer: createViteServer } = await import("vite");
-    const localDir = path.dirname(fileURLToPath(import.meta.url));
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
