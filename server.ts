@@ -43,9 +43,13 @@ if (isUrlValid(supabaseUrl) && supabaseServiceKey && !supabaseServiceKey.include
   console.warn("[RepoSense Server] Supabase credentials missing or invalid. Local-only fallbacks will be used.");
 }
 
-// ES module compatibility
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ES module compatibility — guarded so serverless runtime failures don't crash the function
+let __dirname = process.cwd();
+try {
+  __dirname = path.dirname(fileURLToPath(import.meta.url));
+} catch {
+  // On Vercel / bundled runtimes import.meta.url may be unreliable; fall back to cwd
+}
 
 // Initialize Express
 const app = express();
