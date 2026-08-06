@@ -3,6 +3,7 @@ import path from "path";
 
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import { computeHealthScore } from "./health";
 
 dotenv.config({ override: true });
 
@@ -200,6 +201,16 @@ app.post("/api/analyze", async (req, res) => {
     return res.end();
   }
 
+  // Set SSE headers early so we can stream progress during GitHub API calls
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  // Stage 1: Connecting to GitHub
+  sendSSE(res, { type: "stage", step: 1 });
+
   // Base setup headers backed by GITHUB_TOKEN if available to prevent API rate-limits
   const headers: Record<string, string> = {
     "User-Agent": "RepoSense-AI-App",
@@ -261,8 +272,17 @@ app.post("/api/analyze", async (req, res) => {
     if (treeResult.status === "fulfilled" && treeResult.value && Array.isArray(treeResult.value.tree)) {
       gitTree = treeResult.value.tree;
       filePathsInRepo = gitTree.map((node: any) => node.path);
-      console.log(`✓ Git tree fetched recursively. Total nodes: ${gitTree.length}`);
+      if (treeResult.value.truncated) {
+        console.warn(`[Warning] Git tree truncated at ${filePathsInRepo.length} entries. Health score may be less accurate for very large repos.`);
+      }
+      console.log(`✓ Git tree fetched recursively. Total nodes: ${filePathsInRepo.length}`);
     }
+
+    // Sort file paths for deterministic health scoring
+
+    // Stage 2: Reading Repository Files
+    sendSSE(res, { type: "stage", step: 2 });
+    filePathsInRepo.sort();
 
     // 5. Fallback directory contents fetch if recursive tree failed
     if (filePathsInRepo.length === 0) {
@@ -307,7 +327,11 @@ app.post("/api/analyze", async (req, res) => {
       }
     }
 
-    await Promise.all(
+    // Sort for deterministic fetch order
+    filesToFetch.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Fetch config files — collect results then insert in deterministic order
+    const fileResults = await Promise.all(
       filesToFetch.map(async (fileInfo) => {
         try {
           const branch = repoMeta?.default_branch || "main";
@@ -315,16 +339,24 @@ app.post("/api/analyze", async (req, res) => {
           const rawRes = await fetch(rawUrl, { headers });
           if (rawRes.ok) {
             const text = await rawRes.text();
-            filesContext[fileInfo.name] = text.substring(0, 500);
-            if (fileInfo.name.toLowerCase() === "readme.md") {
-              readmeContent = text;
-            }
+            return { name: fileInfo.name, text, fullName: fileInfo.name.toLowerCase() };
           }
         } catch (err) {
           console.error(`Error downloading raw file ${fileInfo.path}:`, err);
         }
+        return null;
       })
     );
+    // Insert in sorted order for deterministic JSON.stringify output
+    fileResults
+      .filter((r): r is { name: string; text: string; fullName: string } => r !== null)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach(({ name, text, fullName }) => {
+        filesContext[name] = text.substring(0, 500);
+        if (fullName === "readme.md") {
+          readmeContent = text;
+        }
+      });
 
     // Dynamic recovery for readme if not fetched yet
     if (!readmeContent) {
@@ -349,6 +381,9 @@ app.post("/api/analyze", async (req, res) => {
     console.error("GitHub retrieval pipeline failure:", error);
     // Continue with synthesis fallback if primary api failed but do not force-crash
   }
+
+  // Stage 3: Analyzing Project Structure
+  sendSSE(res, { type: "stage", step: 3 });
 
   // Ensure filePathsInRepo has at least some elements
   if (filePathsInRepo.length === 0 && Array.isArray(repoContents)) {
@@ -549,195 +584,18 @@ app.post("/api/analyze", async (req, res) => {
   const nonArchTypes = ["Learning Repository", "Portfolio", "Documentation", "Course Repository", "Research Project", "Data Repository", "Configuration Repository"];
   const isArchitectureConfident = !nonArchTypes.includes(detectedRepoType) && filePathsInRepo.length > 8;
 
-  // ── Programmatic Health Score (replaces unreliable AI-generated scores) ──
-  const computeHealthScore = () => {
-    const filesLower = filePathsInRepo.map(f => f.toLowerCase());
-    const allContextLower = JSON.stringify(filesContext).toLowerCase();
-    const allPathsLower = filesLower.join(" ");
-    let docScore = 0;
-    let archScore = 0;
-    let codeScore = 0;
-    let maintScore = 0;
-    let scaleScore = 0;
+  // ── Programmatic Health Score (modular, graduated scoring) ──
+  const computedHealth = computeHealthScore({
+    filePathsInRepo,
+    filesContext,
+    readmeContent,
+    repoLanguages,
+    repoMeta,
+  });
+  console.log(`[Health] Programmatic score: ${computedHealth.overall}/${100} (${computedHealth.grade}) — doc:${computedHealth.documentation} arch:${computedHealth.architecture} code:${computedHealth.codeQuality} maint:${computedHealth.maintainability} scale:${computedHealth.scalability}`);
 
-    // DOCUMENTATION (0-100)
-    const hasReadme = filesLower.some(f => f.endsWith("readme.md") || f.endsWith("readme.rst") || f.endsWith("readme"));
-    const readmeLen = (readmeContent || "").length;
-    if (hasReadme && readmeLen > 3000) docScore += 40;
-    else if (hasReadme && readmeLen > 1000) docScore += 30;
-    else if (hasReadme && readmeLen > 300) docScore += 20;
-    else if (hasReadme) docScore += 10;
-    const hasDocsDir = filesLower.some(f => f.startsWith("docs/") || f.startsWith("doc/") || f.startsWith("documentation/"));
-    if (hasDocsDir) docScore += 25;
-    // Detect docstrings: Python (""", '''), JSDoc (@param), Java (/** */, javadoc)
-    const hasDocstrings = allContextLower.includes("@param") || allContextLower.includes("@returns") ||
-      allContextLower.includes('"""') || allContextLower.includes("'''") ||
-      allContextLower.includes(":param ") || allContextLower.includes(":type ") ||
-      allPathsLower.includes("javadoc") || allContextLower.includes("{@link}");
-    if (hasDocstrings) docScore += 15;
-    const hasChangelog = filesLower.some(f => f.includes("changelog") || f.includes("changes") || f.includes("history"));
-    if (hasChangelog) docScore += 10;
-    const hasContributing = filesLower.some(f => f.includes("contributing"));
-    if (hasContributing) docScore += 10;
-    docScore = Math.min(docScore, 100);
-
-    // ARCHITECTURE (0-100)
-    const topLevelDirs = new Set(filePathsInRepo.map(f => f.split("/")[0]).filter(d => !d.startsWith(".")));
-    if (topLevelDirs.size > 8) archScore += 20;
-    else if (topLevelDirs.size > 5) archScore += 15;
-    else if (topLevelDirs.size > 3) archScore += 10;
-    // Detect any organized source directory (not just /src/)
-    const hasSourceDir = filesLower.some(f => f.startsWith("src/") || f.startsWith("lib/") || f.startsWith("pkg/") ||
-      f.match(/^[a-z]+\//) && !f.startsWith(".") && !f.startsWith("test") && !f.startsWith("doc"));
-    if (hasSourceDir) archScore += 15;
-    // Detect component/module/package separation (JS, Python, Java, Go, etc.)
-    const hasSeparation = filesLower.some(f => f.includes("/components/") || f.includes("/modules/") ||
-      f.includes("/packages/") || f.includes("/services/") || f.includes("/utils/") || f.includes("/helpers/") ||
-      f.includes("/core/") || f.includes("/io/") || f.includes("/api/") || f.includes("/lib/") ||
-      f.includes("\\components\\") || f.includes("\\modules\\") || f.includes("\\services\\"));
-    if (hasSeparation) archScore += 20;
-    // Detect src-like nesting depth (indicates organized code)
-    const deepFiles = filesLower.filter(f => f.split("/").length > 3);
-    if (deepFiles.length > filesLower.length * 0.3) archScore += 15;
-    else if (deepFiles.length > filesLower.length * 0.15) archScore += 10;
-    // Config directory
-    const hasConfigDir = filesLower.some(f => f.startsWith("config/") || f.startsWith("configs/") ||
-      f.startsWith("src/config") || f.startsWith("etc/") || f.startsWith(".config/"));
-    if (hasConfigDir) archScore += 10;
-    // Well-organized non-flat structure
-    if (filePathsInRepo.length > 50) archScore += 10;
-    else if (filePathsInRepo.length > 20) archScore += 5;
-    archScore = Math.min(archScore, 100);
-
-    // CODE QUALITY (0-100)
-    // Linting: ESLint (JS), Ruff/Flake8/Pylint (Python), Checkstyle/SpotBugs (Java), golangci-lint (Go)
-    const hasLinter = filesLower.some(f => f.includes("eslint") || f.includes(".eslintrc") ||
-      f.includes("ruff.toml") || f.includes(".ruff") || f.includes("ruff") ||
-      f.includes("flake8") || f.includes(".flake8") || f.includes("pylintrc") || f.includes(".pylintrc") ||
-      f.includes("checkstyle") || f.includes("spotbugs") || f.includes("golangci") ||
-      f.includes(".rubocop") || f.includes("rubocop") || f.includes(".clippy"));
-    if (hasLinter) codeScore += 20;
-    // Formatting: Prettier (JS), Black (Python), rustfmt (Rust), google-java-format
-    const hasFormatter = filesLower.some(f => f.includes("prettier") ||
-      f.includes("black") || f.includes(".black") || f.includes("pyproject.toml") ||
-      f.includes("rustfmt") || f.includes("google-java-format") || f.includes("stylua"));
-    if (hasFormatter) codeScore += 10;
-    // Type checking: TypeScript, mypy, pyright, Java strict, mypy.ini
-    const hasTypes = filesLower.some(f => f.includes("tsconfig") ||
-      f.includes("mypy.ini") || f.includes("mypy") || f.includes("pyright") || f.includes("pyrightconfig") ||
-      f.includes("py.typed") || f.includes("type_check") || f.includes("mypy.toml"));
-    if (hasTypes) codeScore += 15;
-    // Tests: multiple test frameworks across languages
-    const hasTests = filesLower.some(f => f.includes(".test.") || f.includes(".spec.") ||
-      f.includes("/test/") || f.includes("/tests/") || f.includes("/__tests__/") ||
-      f.includes("\\test\\") || f.includes("\\tests\\") ||
-      f.includes("test_") || f.includes("_test.") || f.includes("_test.py") ||
-      f.includes("conftest") || f.includes("pytest.ini") || f.includes("tox.ini") ||
-      f.includes("jest.config") || f.includes("vitest.config") || f.includes("karma.conf") ||
-      f.includes("junit") || f.includes("testng") || f.includes("_test.go") ||
-      f.includes("phpunit") || f.includes("rspec") || f.includes("minitest"));
-    if (hasTests) codeScore += 30;
-    // Coverage
-    const hasCoverage = filesLower.some(f => f.includes("coverage") ||
-      f.includes("jest.config") || f.includes("vitest.config") || f.includes(".nycrc") ||
-      f.includes("coverage.xml") || f.includes("htmlcov") || f.includes("lcov") ||
-      f.includes(".coveragerc") || f.includes("codecov") || f.includes("coveralls") ||
-      f.includes("pytest-cov") || f.includes("jacoco") || f.includes("tarpaulin"));
-    if (hasCoverage) codeScore += 15;
-    // Pre-commit hooks
-    const hasHooks = filesLower.some(f => f.includes("husky") || f.includes("pre-commit") ||
-      f.includes("lint-staged") || f.includes(".pre-commit-config"));
-    if (hasHooks) codeScore += 10;
-    codeScore = Math.min(codeScore, 100);
-
-    // MAINTAINABILITY (0-100)
-    // Lock/dependency files across ecosystems
-    const hasLockFile = filesLower.some(f => f.includes("package-lock.json") || f.includes("yarn.lock") ||
-      f.includes("pnpm-lock") || f.includes("poetry.lock") || f.includes("go.sum") ||
-      f.includes("Cargo.lock") || f.includes("Gemfile.lock") || f.includes("composer.lock") ||
-      f.includes("Pipfile.lock") || f.includes("pip-tools") || f.includes("uv.lock") ||
-      f.includes("requirements-lock") || f.includes("requirements.txt") || f.includes("setup.py") ||
-      f.includes("setup.cfg") || f.includes("pyproject.toml") || f.includes("pom.xml") ||
-      f.includes("build.gradle") || f.includes("build.gradle.kts") || f.includes("go.mod") ||
-      f.includes("Cargo.toml") || f.includes("Gemfile") || f.includes("mix.exs"));
-    if (hasLockFile) maintScore += 20;
-    // Dependency management automation
-    const hasDependabot = filesLower.some(f => f.includes("dependabot") || f.includes("renovate") ||
-      f.includes("renovate.json") || f.includes(".renovaterc"));
-    if (hasDependabot) maintScore += 15;
-    // License
-    const hasLicense = filesLower.some(f => f.includes("license") && (f.endsWith(".md") || f.endsWith(".txt") || f.endsWith(".rst") || f === "license" || f === "license.md" || f === "license.txt" || f === "license-bsd" || f === "license-apache"));
-    if (hasLicense) maintScore += 10;
-    // Issue/PR templates
-    const hasTemplates = filesLower.some(f => f.includes("issue_template") || f.includes("ISSUE_TEMPLATE") ||
-      f.includes("pull_request_template") || f.includes("PULL_REQUEST_TEMPLATE") ||
-      f.includes(".github/ISSUE_TEMPLATE") || f.includes(".github/pull_request_template"));
-    if (hasTemplates) maintScore += 10;
-    // Recency of activity
-    if (repoMeta?.pushed_at) {
-      const daysSinceUpdate = (Date.now() - new Date(repoMeta.pushed_at).getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceUpdate < 30) maintScore += 20;
-      else if (daysSinceUpdate < 90) maintScore += 15;
-      else if (daysSinceUpdate < 180) maintScore += 10;
-      else if (daysSinceUpdate < 365) maintScore += 5;
-    }
-    // README presence (already checked above)
-    if (hasReadme) maintScore += 10;
-    // CI config
-    const hasCIConfig = filesLower.some(f => f.includes(".github/workflows/") || f.includes(".gitlab-ci") ||
-      f.includes(".circleci/") || f.includes("Jenkinsfile") || f.includes(".travis.yml") ||
-      f.includes("azure-pipelines") || f.includes("bitbucket-pipelines") || f.includes("appveyor") ||
-      f.includes(".github/workflows"));
-    if (hasCIConfig) maintScore += 10;
-    // Code of conduct, security policy
-    const hasCommunityFiles = filesLower.some(f => f.includes("code_of_conduct") || f.includes("security") ||
-      f.includes("CODE_OF_CONDUCT") || f.includes("SECURITY"));
-    if (hasCommunityFiles) maintScore += 5;
-    maintScore = Math.min(maintScore, 100);
-
-    // SCALABILITY (0-100)
-    // Containerization
-    const hasDocker = filesLower.some(f => f.includes("dockerfile") || f.includes("docker-compose") ||
-      f.includes(".dockerignore") || f.includes("docker-compose.yml") || f.includes("docker-compose.yaml"));
-    if (hasDocker) scaleScore += 20;
-    // CI/CD
-    const hasCI = filesLower.some(f => f.includes(".github/workflows/") || f.includes(".gitlab-ci") ||
-      f.includes(".circleci/") || f.includes("Jenkinsfile") || f.includes(".travis.yml") ||
-      f.includes("azure-pipelines") || f.includes("bitbucket-pipelines"));
-    if (hasCI) scaleScore += 25;
-    // Deployment configs
-    const hasCD = filesLower.some(f => f.includes("deploy") || f.includes("vercel.json") ||
-      f.includes("netlify.toml") || f.includes("Procfile") || f.includes("render.yaml") ||
-      f.includes("kubernetes") || f.includes("k8s") || f.includes("helm") || f.includes("terraform") ||
-      f.includes("ansible") || f.includes(".ebextensions") || f.includes("appspec.yml"));
-    if (hasCD) scaleScore += 15;
-    // Environment config
-    const hasEnvExample = filesLower.some(f => f.includes(".env.example") || f.includes(".env.sample") ||
-      f.includes(".env.template") || f.includes(".env.dev") || f.includes(".env.local"));
-    if (hasEnvExample) scaleScore += 10;
-    // .gitignore
-    const hasGitignore = filesLower.some(f => f.includes(".gitignore"));
-    if (hasGitignore) scaleScore += 5;
-    // Modular architecture bonus
-    if (hasSeparation && hasSourceDir) scaleScore += 15;
-    // Multiple languages/frameworks detected = more mature project
-    const langCount = Object.keys(repoLanguages).length;
-    if (langCount > 4) scaleScore += 10;
-    else if (langCount > 2) scaleScore += 5;
-    scaleScore = Math.min(scaleScore, 100);
-
-    // Stars bonus: popular projects are generally better maintained (small bonus)
-    const stars = repoMeta?.stargazers_count ?? 0;
-    const starBonus = stars > 10000 ? 5 : stars > 1000 ? 3 : stars > 100 ? 1 : 0;
-
-    const raw = docScore * 0.20 + archScore * 0.20 + codeScore * 0.25 + maintScore * 0.20 + scaleScore * 0.15;
-    const overall = Math.min(Math.round(raw + starBonus), 100);
-
-    return { overall, documentation: docScore, architecture: archScore, codeQuality: codeScore, maintainability: maintScore, scalability: scaleScore };
-  };
-
-  const computedHealth = computeHealthScore();
-  console.log(`[Health] Programmatic score: ${computedHealth.overall} (doc:${computedHealth.documentation} arch:${computedHealth.architecture} code:${computedHealth.codeQuality} maint:${computedHealth.maintainability} scale:${computedHealth.scalability})`);
+  // Stage 4: Detecting Technologies
+  sendSSE(res, { type: "stage", step: 4 });
 
   // Prepare tailored section guidance based on repository type to enforce high-fidelity summaries
   let dynamicSectionGuidance = "";
@@ -996,13 +854,6 @@ const modelName = "meta/llama-3.1-8b-instruct";
     const MAX_RETRIES = 1;
     const BASE_DELAY_MS = 1000;
 
-    // Set SSE headers for streaming (after all GitHub API validation is complete)
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("X-Accel-Buffering", "no");
-    res.flushHeaders();
-
     // Signal to client that GitHub data is ready and AI generation is starting
     sendSSE(res, { type: "start" });
 
@@ -1104,6 +955,7 @@ const modelName = "meta/llama-3.1-8b-instruct";
 
     const decoder = new TextDecoder();
     let buffer = "";
+    let chunkIndex = 0;
 
     try {
       while (true) {
@@ -1125,7 +977,8 @@ const modelName = "meta/llama-3.1-8b-instruct";
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) {
               rawAiResult += delta;
-              sendSSE(res, { type: "chunk", content: delta });
+              chunkIndex++;
+              sendSSE(res, { type: "chunk", content: delta, chunkIndex });
             }
             const finishReason = parsed.choices?.[0]?.finish_reason;
             if (finishReason === "length") {
@@ -1187,6 +1040,7 @@ const modelName = "meta/llama-3.1-8b-instruct";
       repoType: parsedData.repoType || "Software Project",
       architectureConfident: parsedData.architectureConfident ?? true,
       healthScore: computedHealth.overall,
+      healthGrade: computedHealth.grade,
       healthMetrics: {
         documentation: computedHealth.documentation,
         architecture: computedHealth.architecture,
@@ -1194,6 +1048,7 @@ const modelName = "meta/llama-3.1-8b-instruct";
         maintainability: computedHealth.maintainability,
         scalability: computedHealth.scalability
       },
+      healthBreakdown: computedHealth.breakdown,
       healthScoreSource: "computed" as const,
       summary: parsedData.summary || {
         projectOverview: parsedData.description || "Project representation.",
@@ -1484,6 +1339,7 @@ ${reportContext}`
 
   const decoder = new TextDecoder();
   let buffer = "";
+  let chunkIndex = 0;
 
   try {
     while (true) {
@@ -1504,7 +1360,8 @@ ${reportContext}`
           const parsed = JSON.parse(payload);
           const delta = parsed.choices?.[0]?.delta?.content;
           if (delta) {
-            sendSSE(res, { type: "chunk", content: delta });
+            chunkIndex++;
+            sendSSE(res, { type: "chunk", content: delta, chunkIndex });
           }
         } catch {
           // skip malformed SSE chunks
