@@ -5,7 +5,9 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import { computeHealthScore } from "./health";
 
-dotenv.config({ override: true });
+if (!process.env.VERCEL) {
+  dotenv.config({ override: true });
+}
 
 // Startup diagnostics for environment and APIs
 console.log("=== REPOSENSE STARTUP DIAGNOSTICS ===");
