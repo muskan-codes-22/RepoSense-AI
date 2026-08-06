@@ -81,11 +81,35 @@ RepoSense-AI/
 │   ├── components/     # React components
 │   ├── lib/            # Utilities (Supabase client, etc.)
 │   └── App.tsx         # Main application
+├── health/             # Modular health scoring system
+│   ├── index.ts        # Orchestrator
+│   ├── documentation.ts
+│   ├── architecture.ts
+│   ├── codeQuality.ts
+│   ├── maintainability.ts
+│   ├── scalability.ts
+│   ├── githubSignals.ts
+│   ├── config.ts       # Weights & thresholds
+│   └── types.ts        # Interfaces
 ├── public/             # Static assets
 ├── server.ts           # Express backend with AI analysis
 ├── .env.example        # Environment variable template
 └── package.json        # Dependencies and scripts
 ```
+
+## Health Score
+
+Every analyzed repository receives a **Repository Health Score** (0–100) with a letter grade (A–F). The score is a deterministic, weighted average of 5 categories:
+
+| Category | Weight | What it measures |
+|---|---|---|
+| Documentation | 20% | README quality, docs dir, inline docstrings, changelog |
+| Architecture | 20% | Directory structure, module separation, nesting depth |
+| Code Quality | 25% | Linter, formatter, type checker, test ratio, coverage |
+| Maintainability | 20% | Dependencies, license, CI, activity recency, community |
+| Scalability | 15% | Docker, CI/CD, deployment config, modularity |
+
+See [`docs/HEALTH_SCORE.md`](docs/HEALTH_SCORE.md) for the full scoring breakdown, configuration options, and API reference.
 
 ## Available Scripts
 
