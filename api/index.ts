@@ -1,7 +1,7 @@
-import app from "./server.mjs";
+import mod from "./server.cjs";
 
 export const config = {
   maxDuration: 60,
 };
 
-export default app;
+export default mod.default ?? mod;
