@@ -146,6 +146,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
   };
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
+  const [chunkCount, setChunkCount] = useState(0);
   const [errorStr, setErrorStr] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<string>("Extraction Error");
   const [activeReport, setActiveReport] = useState<AnalysisReport | null>(null);
@@ -465,38 +466,55 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
     setErrorStr(null);
     setErrorType("Extraction Error");
     setActiveReport(null);
+    setChunkCount(0);
 
-    // Timer-based staged progression — advance through stages 1-6 with 5s gaps
-    // while the backend works at its own speed
-    const pendingStageTimers: ReturnType<typeof setTimeout>[] = [];
-    let lastStageTime = Date.now();
+    // Minimum 2s per stage, backend-driven. Backend events set a target;
+    // frontend advances one step at a time, each waiting 2s from the previous.
     let currentStep = 0;
-    const MIN_STAGE_MS = 5000;
-    const advanceStage = (step: number) => {
-      if (step <= currentStep) return;
-      const now = Date.now();
-      const elapsed = now - lastStageTime;
-      const doAdvance = () => {
-        currentStep = step;
+    let lastStageTime = Date.now();
+    let targetStage = 0;
+    let advanceTimer: ReturnType<typeof setTimeout> | null = null;
+    let pendingReport: AnalysisReport | null = null;
+    const MIN_STAGE_MS = 1500;
+    const tryAdvance = () => {
+      if (advanceTimer) return;
+      if (targetStage <= currentStep) return;
+      const elapsed = Date.now() - lastStageTime;
+      if (elapsed >= MIN_STAGE_MS) {
+        currentStep++;
         setAnalysisStep(currentStep);
         lastStageTime = Date.now();
-      };
-      if (elapsed >= MIN_STAGE_MS) {
-        doAdvance();
+        if (currentStep === 6 && pendingReport) {
+          setActiveReport(pendingReport);
+          saveToHistory(pendingReport);
+          setActiveTab(SidebarTab.DASHBOARD);
+          pendingReport = null;
+          setIsAnalyzing(false);
+        }
+        tryAdvance();
       } else {
-        const t = setTimeout(doAdvance, MIN_STAGE_MS - elapsed);
-        pendingStageTimers.push(t);
+        advanceTimer = setTimeout(() => {
+          advanceTimer = null;
+          currentStep++;
+          setAnalysisStep(currentStep);
+          lastStageTime = Date.now();
+          if (currentStep === 6 && pendingReport) {
+            setActiveReport(pendingReport);
+            saveToHistory(pendingReport);
+            setActiveTab(SidebarTab.DASHBOARD);
+            pendingReport = null;
+            setIsAnalyzing(false);
+          }
+          tryAdvance();
+        }, MIN_STAGE_MS - elapsed);
       }
     };
-    const t0 = setTimeout(() => advanceStage(1), 5000);
-    const t1 = setTimeout(() => advanceStage(2), 10000);
-    const t2 = setTimeout(() => advanceStage(3), 15000);
-    const t3 = setTimeout(() => advanceStage(4), 20000);
-    const t4 = setTimeout(() => advanceStage(5), 25000);
-    pendingStageTimers.push(t0, t1, t2, t3, t4);
-    const clearPendingTimers = () => {
-      pendingStageTimers.forEach(clearTimeout);
-      pendingStageTimers.length = 0;
+    const scheduleStage = (step: number) => {
+      targetStage = Math.max(targetStage, step);
+      tryAdvance();
+    };
+    const clearAllTimers = () => {
+      if (advanceTimer) { clearTimeout(advanceTimer); advanceTimer = null; }
     };
 
     // Smooth scroll the content pane to the top so loading stages are instantly visible
@@ -575,26 +593,23 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
           try {
             const event = JSON.parse(trimmed.slice(6));
 
-            if (event.type === "start") {
-              // GitHub data ready, AI generation starting — advance to step 3 (respects 5s gap)
-              advanceStage(3);
+            if (event.type === "stage") {
+              scheduleStage(event.step);
+            } else if (event.type === "start") {
+              scheduleStage(5);
             } else if (event.type === "chunk") {
-              // AI tokens streaming in — advance to step 4 on first chunk (respects 5s gap)
-              advanceStage(4);
+              if (currentStep < 5) {
+                scheduleStage(5);
+              }
+              setChunkCount(prev => prev + 1);
             } else if (event.type === "done") {
-              // Full report received — stop all pending timers and jump to final stage
-              clearPendingTimers();
-              currentStep = 6;
-              setAnalysisStep(6);
               const rawReport = event.report;
-              const finalReport: AnalysisReport = {
+              pendingReport = {
                 ...rawReport,
                 id: `report_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
                 analyzedAt: rawReport.analyzedAt || new Date().toISOString(),
               };
-              setActiveReport(finalReport);
-              saveToHistory(finalReport);
-              setActiveTab(SidebarTab.DASHBOARD);
+              scheduleStage(6);
             } else if (event.type === "error") {
               setErrorStr(event.message || "Analysis failed.");
               setErrorType(event.errorType || "Analysis Error");
@@ -608,7 +623,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
         }
       }
     } catch (err: any) {
-      clearPendingTimers();
+      clearAllTimers();
       console.error(err);
       if (err.name === "AbortError" || err.message?.includes("aborted")) {
         setErrorStr("The request timed out. The analysis is taking longer than expected. Please try again.");
@@ -623,9 +638,10 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
       } else if (err.message?.includes("not found") || err.message?.includes("404")) {
         setErrorType("Repository Not Found");
       }
-    } finally {
-      clearPendingTimers();
       setIsAnalyzing(false);
+    } finally {
+      // Don't clear timers or hide loading here — let tryAdvance reach step 6
+      // clearAllTimers() and setIsAnalyzing(false) are handled by tryAdvance at step 6
     }
   };
 
@@ -759,7 +775,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
               <span>Recent Inspections</span>
             </h5>
             <div 
-              className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1 scroll-smooth"
+              className="space-y-1.5 max-h-[96px] overflow-y-auto pr-1 scroll-smooth"
               style={{ scrollbarWidth: "thin", scrollbarColor: "#CBD5E1 transparent" }}
             >
               {(() => {
@@ -956,7 +972,11 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                   <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
                     <div 
                       className="bg-gradient-to-r from-[#1B2A6B] to-[#2E3F8F] h-full rounded-full transition-all duration-350 ease-out"
-                      style={{ width: `${Math.min(((analysisStep + 1) / 6) * 100, 100)}%` }}
+                      style={{
+                        width: analysisStep === 5
+                          ? `${Math.min(80 + Math.min(chunkCount * 2, 19), 99)}%`
+                          : `${Math.min(((analysisStep + 1) / 6) * 100, 100)}%`
+                      }}
                     />
                   </div>
 
@@ -1097,7 +1117,7 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                       
                       <div className="text-center">
                         <h3 className="font-display font-extrabold text-slate-900 text-sm uppercase tracking-wider">Repository Health Score</h3>
-                        <p className="text-[11px] text-slate-400 mt-0.5 font-medium italic">Holistic AI assessment — not a simple average of the metrics below</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5 font-medium italic">Deterministic analysis — file-system checks + GitHub API signals</p>
                       </div>
 
                       {activeScore === null ? (
@@ -1160,16 +1180,18 @@ export default function Dashboard({ initialUrl, onLogout, user }: DashboardProps
                               </svg>
 
                               {/* Inner Score text annotation */}
-                              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                                <motion.span 
-                                  initial={{ opacity: 0, scale: 0.8 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  className="text-3xl font-black font-display text-slate-900 leading-none"
-                                >
-                                  {activeScore}
-                                </motion.span>
-                                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1">/ 100</span>
-                              </div>
+    <div className="absolute inset-0 flex items-center justify-center pt-2">
+      <div className="flex items-baseline">
+        <motion.span 
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-3xl font-black font-display text-slate-900 leading-none"
+        >
+          {activeScore}
+        </motion.span>
+        <span className="text-xs font-bold text-slate-400 ml-0.5">/ 100</span>
+      </div>
+    </div>
                             </div>
                           </div>
 
