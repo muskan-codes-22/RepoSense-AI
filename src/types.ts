@@ -49,6 +49,23 @@ export interface HealthMetrics {
   scalability: number;
 }
 
+export interface CheckResult {
+  name: string;
+  points: number;
+  maxPoints: number;
+  details?: string;
+}
+
+export interface HealthBreakdown {
+  documentation: CheckResult[];
+  architecture: CheckResult[];
+  codeQuality: CheckResult[];
+  maintainability: CheckResult[];
+  scalability: CheckResult[];
+}
+
+export type HealthGrade = "A" | "B" | "C" | "D" | "F";
+
 
 export interface AnalysisReport {
   id: string;
@@ -68,7 +85,9 @@ export interface AnalysisReport {
   stats: Stats;
   analyzedAt: string;
   healthScore?: number;
+  healthGrade?: HealthGrade;
   healthMetrics?: HealthMetrics;
+  healthBreakdown?: HealthBreakdown;
   healthScoreSource?: "ai" | "fallback_parse" | "fallback_api" | "computed";
   repoType?: string;
   architectureConfident?: boolean;
